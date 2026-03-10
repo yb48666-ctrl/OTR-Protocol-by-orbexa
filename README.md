@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/anthropics/otr-protocol/main/assets/otr-logo.svg" alt="OTR Protocol" width="200" />
+  <img src="https://raw.githubusercontent.com/yb48666-ctrl/OTR-Protocol/main/assets/otr-logo.svg" alt="OTR Protocol" width="80" />
 </p>
 
 <h1 align="center">OTR Protocol</h1>
@@ -9,16 +9,15 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@otr-protocol/core"><img src="https://img.shields.io/npm/v/@otr-protocol/core.svg?style=flat-square&color=22D3EE" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="MIT License" /></a>
-  <a href="https://github.com/anthropics/otr-protocol/actions"><img src="https://img.shields.io/github/actions/workflow/status/anthropics/otr-protocol/ci.yml?style=flat-square" alt="Build Status" /></a>
-  <a href="https://github.com/anthropics/otr-protocol/stargazers"><img src="https://img.shields.io/github/stars/anthropics/otr-protocol?style=flat-square&color=yellow" alt="GitHub Stars" /></a>
-  <a href="https://github.com/anthropics/otr-protocol/issues"><img src="https://img.shields.io/github/issues/anthropics/otr-protocol?style=flat-square" alt="Issues" /></a>
+  <img src="https://img.shields.io/badge/version-3.0.0-22D3EE.svg?style=flat-square" alt="v3.0.0" />
+  <a href="https://github.com/yb48666-ctrl/OTR-Protocol/stargazers"><img src="https://img.shields.io/github/stars/yb48666-ctrl/OTR-Protocol?style=flat-square&color=yellow" alt="GitHub Stars" /></a>
+  <a href="https://github.com/yb48666-ctrl/OTR-Protocol/issues"><img src="https://img.shields.io/github/issues/yb48666-ctrl/OTR-Protocol?style=flat-square" alt="Issues" /></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/anthropics/otr-protocol/tree/main/spec/OTR-SPEC-v3.md">Specification</a> &bull;
-  <a href="https://github.com/anthropics/otr-protocol/tree/main/spec/SCORING-ALGORITHM-v3.md">Scoring Algorithm</a> &bull;
+  <a href="https://github.com/yb48666-ctrl/OTR-Protocol/tree/main/spec/OTR-SPEC-v3.md">Specification</a> &bull;
+  <a href="https://github.com/yb48666-ctrl/OTR-Protocol/tree/main/spec/SCORING-ALGORITHM-v3.md">Scoring Algorithm</a> &bull;
   <a href="#quick-start">Quick Start</a> &bull;
   <a href="#packages">Packages</a> &bull;
   <a href="CONTRIBUTING.md">Contributing</a>
@@ -199,10 +198,10 @@ Identity weight (0.55) makes unforgeable signals dominant. Gaming sites cannot f
 
 | Package | Description | npm |
 |---------|-------------|-----|
-| [`@otr-protocol/core`](packages/core) | Deterministic scoring engine -- the reference implementation | [![npm](https://img.shields.io/npm/v/@otr-protocol/core.svg?style=flat-square)](https://www.npmjs.com/package/@otr-protocol/core) |
-| [`@otr-protocol/mcp-server`](packages/mcp-server) | MCP Server for Claude Desktop and AI agents | [![npm](https://img.shields.io/npm/v/@otr-protocol/mcp-server.svg?style=flat-square)](https://www.npmjs.com/package/@otr-protocol/mcp-server) |
-| [`@otr-protocol/validator`](packages/validator-cli) | CLI tool for merchant verification | [![npm](https://img.shields.io/npm/v/@otr-protocol/validator.svg?style=flat-square)](https://www.npmjs.com/package/@otr-protocol/validator) |
-| [`@otr-protocol/sdk`](packages/sdk) | TypeScript client SDK for application integration | [![npm](https://img.shields.io/npm/v/@otr-protocol/sdk.svg?style=flat-square)](https://www.npmjs.com/package/@otr-protocol/sdk) |
+| [`@otr-protocol/core`](packages/core) | Deterministic scoring engine -- the reference implementation | `3.0.0` |
+| [`@otr-protocol/mcp-server`](packages/mcp-server) | MCP Server for Claude Desktop and AI agents | `3.0.0` |
+| [`@otr-protocol/validator`](packages/validator-cli) | CLI tool for merchant verification | `3.0.0` |
+| [`@otr-protocol/sdk`](packages/sdk) | TypeScript client SDK for application integration | `3.0.0` |
 
 ## Conformance Testing
 
