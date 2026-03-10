@@ -13,48 +13,105 @@
  *
  * // Verify a merchant
  * const result = await otr.verify("nike.com");
- * console.log(result.trustScore);  // 88
+ * console.log(result.trustScore);  // 80
  * console.log(result.badge);       // "GOLD"
  *
  * // Search the registry
- * const merchants = await otr.search({ category: "Electronics", minScore: 70 });
+ * const results = await otr.search({ category: "Electronics", minScore: 70 });
  * ```
  *
  * @version 3.0.0
  */
 
 // ============================================================================
-// Types
+// Types — match actual OTR API response structure
 // ============================================================================
 
-/** OTR trust verification result */
+/** Trust badge level */
+export type Badge = "PLATINUM" | "GOLD" | "SILVER" | "BRONZE" | "UNRATED";
+
+/** Trust tier level */
+export type Tier = "TIER_5" | "TIER_4" | "TIER_3" | "TIER_2" | "TIER_1";
+
+/** Verification tier detail for a single dimension */
+export interface TierDetail {
+  /** Data source identifier */
+  source: string;
+  /** Verification status */
+  status: string;
+  /** Evidence description */
+  evidence: string;
+}
+
+/** Verification data containing all dimension evidence */
+export interface VerificationData {
+  tiers: {
+    identity: TierDetail;
+    technical: TierDetail;
+    compliance: TierDetail;
+    dataQuality: TierDetail;
+    fulfillment: TierDetail;
+    policyScore: TierDetail;
+    webPresence: TierDetail;
+  };
+  scanMetadata?: {
+    scanner: string;
+    lastScanAt: string;
+    scanVersion: number;
+  };
+  schema_version: string;
+}
+
+/** 7-dimension trust scores */
+export interface TrustDimensions {
+  identity: number;
+  technical: number;
+  compliance: number;
+  policyScore: number;
+  webPresence: number;
+  dataQuality: number;
+  fulfillment: number;
+}
+
+/** Data source provenance */
+export interface DataSource {
+  name: string;
+  url: string;
+  lastChecked: string;
+}
+
+/** OTR trust verification result — matches actual API response */
 export interface OtrVerifyResult {
   /** Merchant domain */
   domain: string;
-  /** Brand name (if known) */
-  brandName: string | null;
+  /** Brand name */
+  name: string;
   /** Composite trust score (0-94) */
   trustScore: number;
+  /** Trust tier (TIER_1 to TIER_5) */
+  trustTier: string;
   /** Trust badge level */
-  badge: "PLATINUM" | "GOLD" | "SILVER" | "BRONZE" | "UNRATED";
-  /** Trust tier */
-  tier: string;
-  /** 7-dimension scores */
-  trustDimensions: {
-    identity: number;
-    technical: number;
-    compliance: number;
-    policyScore: number;
-    webPresence: number;
-    dataQuality: number;
-    fulfillment: number;
-  };
-  /** Verification evidence */
-  verificationData: Record<string, unknown>;
+  badge: Badge;
   /** Business category */
   category: string | null;
-  /** Last update timestamp */
-  updatedAt: string;
+  /** Verification evidence for all 7 dimensions */
+  verificationData: VerificationData;
+  /** 7-dimension scores */
+  trustDimensions: TrustDimensions;
+  /** Entity data (stock info, headquarters, etc.) */
+  entityData: Record<string, unknown> | null;
+  /** Data sources used for verification */
+  dataSources: DataSource[];
+  /** Tranco popularity rank (lower = more popular) */
+  trancoRank: number | null;
+  /** Whether merchant has integrated via ORBEXA API */
+  isMerchantAuthorized: boolean;
+  /** ORBEXA store URL (if merchant is authorized) */
+  orbexaStoreUrl: string | null;
+  /** Audit version number */
+  auditVersion: number;
+  /** Last verification timestamp (ISO 8601) */
+  lastVerified: string;
 }
 
 /** Search query parameters */
@@ -66,24 +123,43 @@ export interface OtrSearchQuery {
   /** Minimum trust score */
   minScore?: number;
   /** Filter by badge level */
-  badge?: "PLATINUM" | "GOLD" | "SILVER" | "BRONZE";
+  badge?: Badge;
   /** Maximum results (default: 10, max: 50) */
   limit?: number;
+  /** Page number (default: 1) */
+  page?: number;
 }
 
-/** Search result */
+/** Search result — matches actual API response */
 export interface OtrSearchResult {
+  /** Merchant entries */
+  entries: OtrVerifyResult[];
   /** Total matching merchants */
   total: number;
-  /** Merchant entries */
-  merchants: OtrVerifyResult[];
+  /** Current page */
+  page: number;
+  /** Results per page */
+  limit: number;
+  /** Total pages available */
+  totalPages: number;
+}
+
+/** Registry statistics */
+export interface OtrStats {
+  totalEntries: number;
+  verifiedCount: number;
+  platinumCount: number;
+  goldCount: number;
+  silverCount: number;
+  bronzeCount: number;
+  unratedCount: number;
 }
 
 /** SDK configuration */
 export interface OtrClientConfig {
-  /** API base URL (default: https://api.orbexa.io) */
+  /** API base URL (default: https://orbexa.io) */
   baseUrl?: string;
-  /** Request timeout in ms (default: 10000) */
+  /** Request timeout in ms (default: 15000) */
   timeout?: number;
   /** Custom fetch function (for testing or Node.js polyfills) */
   fetchFn?: typeof fetch;
@@ -112,8 +188,8 @@ export class OtrClient {
   private readonly fetchFn: typeof fetch;
 
   constructor(config?: OtrClientConfig) {
-    this.baseUrl = (config?.baseUrl ?? "https://api.orbexa.io").replace(/\/$/, "");
-    this.timeout = config?.timeout ?? 10_000;
+    this.baseUrl = (config?.baseUrl ?? "https://orbexa.io").replace(/\/$/, "");
+    this.timeout = config?.timeout ?? 15_000;
     this.fetchFn = config?.fetchFn ?? globalThis.fetch;
   }
 
@@ -121,19 +197,29 @@ export class OtrClient {
    * Verify a merchant's trust score.
    *
    * @param domain - Merchant domain (e.g., "nike.com")
-   * @returns Trust verification result
+   * @returns Trust verification result with 7-dimension breakdown
    * @throws OtrApiError if domain not found or API error
    */
   async verify(domain: string): Promise<OtrVerifyResult> {
     const cleanDomain = normalizeDomain(domain);
-    const response = await this.request(`/api/otr/verify/${encodeURIComponent(cleanDomain)}`);
+    const response = await this.request(
+      `/api/otr/verify/${encodeURIComponent(cleanDomain)}`,
+    );
 
     if (response.status === 404) {
-      throw new OtrApiError(`Domain "${cleanDomain}" not found in OTR registry`, 404, cleanDomain);
+      throw new OtrApiError(
+        `Domain "${cleanDomain}" not found in OTR registry`,
+        404,
+        cleanDomain,
+      );
     }
 
     if (!response.ok) {
-      throw new OtrApiError(`OTR API error: ${response.status}`, response.status, cleanDomain);
+      throw new OtrApiError(
+        `OTR API error: ${response.status}`,
+        response.status,
+        cleanDomain,
+      );
     }
 
     return (await response.json()) as OtrVerifyResult;
@@ -159,20 +245,27 @@ export class OtrClient {
    * Search the OTR merchant registry.
    *
    * @param query - Search parameters
-   * @returns Search results
+   * @returns Paginated search results
    */
   async search(query?: OtrSearchQuery): Promise<OtrSearchResult> {
     const params = new URLSearchParams();
     if (query?.query) params.set("q", query.query);
     if (query?.category) params.set("category", query.category);
     if (query?.badge) params.set("badge", query.badge);
-    if (query?.minScore !== undefined) params.set("minScore", String(query.minScore));
+    if (query?.minScore !== undefined)
+      params.set("minScore", String(query.minScore));
     params.set("limit", String(Math.min(query?.limit ?? 10, 50)));
+    params.set("page", String(query?.page ?? 1));
 
-    const response = await this.request(`/api/otr/registry?${params.toString()}`);
+    const response = await this.request(
+      `/api/otr/registry?${params.toString()}`,
+    );
 
     if (!response.ok) {
-      throw new OtrApiError(`OTR API error: ${response.status}`, response.status);
+      throw new OtrApiError(
+        `OTR API error: ${response.status}`,
+        response.status,
+      );
     }
 
     return (await response.json()) as OtrSearchResult;
@@ -181,16 +274,19 @@ export class OtrClient {
   /**
    * Get registry statistics.
    *
-   * @returns Registry stats (total merchants, badge distribution, etc.)
+   * @returns Registry stats (total merchants, badge distribution)
    */
-  async stats(): Promise<Record<string, unknown>> {
+  async stats(): Promise<OtrStats> {
     const response = await this.request("/api/otr/stats");
 
     if (!response.ok) {
-      throw new OtrApiError(`OTR API error: ${response.status}`, response.status);
+      throw new OtrApiError(
+        `OTR API error: ${response.status}`,
+        response.status,
+      );
     }
 
-    return (await response.json()) as Record<string, unknown>;
+    return (await response.json()) as OtrStats;
   }
 
   // ── Internal ──
@@ -202,7 +298,7 @@ export class OtrClient {
     try {
       return await this.fetchFn(`${this.baseUrl}${path}`, {
         headers: {
-          "Accept": "application/json",
+          Accept: "application/json",
           "User-Agent": "@otr-protocol/sdk/3.0.0",
         },
         signal: controller.signal,
@@ -225,9 +321,3 @@ function normalizeDomain(input: string): string {
   domain = domain.replace(/\/.*$/, "");
   return domain;
 }
-
-// ── Re-export core types for convenience ──
-// Note: When using the SDK standalone, install @otr-protocol/core separately
-// for type definitions. These types are duplicated here for SDK independence.
-export type Badge = "PLATINUM" | "GOLD" | "SILVER" | "BRONZE" | "UNRATED";
-export type Tier = "TIER_5" | "TIER_4" | "TIER_3" | "TIER_2" | "TIER_1";

@@ -2,61 +2,400 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://otr-protocol.org/schemas/trust-manifest-v3.json",
   "title": "OTR Trust Manifest v3",
-  "description": "Machine-readable trust declaration published by merchants at /.well-known/otr/trust.json",
-  "type": "object",
-  "required": ["version", "domain", "trustScore", "badge", "dimensions", "issuedAt", "expiresAt", "issuer"],
-  "properties": {
-    "version": {
-      "type": "string",
-      "pattern": "^3\\.",
-      "description": "Schema version (must start with 3.)"
-    },
-    "domain": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Merchant domain name"
-    },
-    "trustScore": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 94,
-      "description": "Composite trust score (95+ reserved for manual review)"
-    },
-    "badge": {
-      "type": "string",
-      "enum": ["PLATINUM", "GOLD", "SILVER", "BRONZE", "UNRATED"],
-      "description": "Trust badge level"
-    },
-    "dimensions": {
+  "description": "Machine-readable trust declaration published by merchants at /.well-known/otr/trust.json. This schema defines the complete trust manifest format including optional signed envelope, verification evidence, entity data, and data source provenance.",
+  "oneOf": [
+    { "$ref": "#/$defs/TrustManifest" },
+    { "$ref": "#/$defs/SignedTrustManifest" }
+  ],
+  "$defs": {
+    "TrustManifest": {
       "type": "object",
-      "required": ["identity", "technical", "compliance", "policyScore", "webPresence", "dataQuality", "fulfillment"],
+      "title": "OTR Trust Manifest (unsigned)",
+      "description": "A trust manifest without cryptographic signature. Consumers SHOULD prefer signed manifests when available.",
+      "required": [
+        "version",
+        "domain",
+        "trustScore",
+        "badge",
+        "tier",
+        "assessmentType",
+        "dimensions",
+        "issuedAt",
+        "expiresAt",
+        "issuer"
+      ],
       "properties": {
-        "identity": { "type": "number", "minimum": 0, "maximum": 100 },
-        "technical": { "type": "number", "minimum": 0, "maximum": 100 },
-        "compliance": { "type": "number", "minimum": 0, "maximum": 100 },
-        "policyScore": { "type": "number", "minimum": 0, "maximum": 100 },
-        "webPresence": { "type": "number", "minimum": 0, "maximum": 100 },
-        "dataQuality": { "type": "number", "minimum": 0, "maximum": 100 },
-        "fulfillment": { "type": "number", "minimum": 0, "maximum": 100 }
+        "version": {
+          "type": "string",
+          "pattern": "^3\\.",
+          "description": "Schema version. MUST start with '3.' for OTR v3 manifests."
+        },
+        "domain": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+          "description": "Merchant domain name (e.g., 'example.com'). MUST NOT include protocol or path."
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable merchant name (e.g., 'Nike, Inc.')."
+        },
+        "trustScore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 94,
+          "description": "Composite trust score. Range [0, 94]. Scores 95+ are reserved for manual review and MUST NOT appear in manifests."
+        },
+        "badge": {
+          "type": "string",
+          "enum": ["PLATINUM", "GOLD", "SILVER", "BRONZE", "UNRATED"],
+          "description": "Trust badge level derived from trustScore. PLATINUM (90-94), GOLD (80-89), SILVER (70-79), BRONZE (60-69), UNRATED (0-59)."
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["TIER_5", "TIER_4", "TIER_3", "TIER_2", "TIER_1"],
+          "description": "Machine-readable trust tier. TIER_5=PLATINUM, TIER_4=GOLD, TIER_3=SILVER, TIER_2=BRONZE, TIER_1=UNRATED."
+        },
+        "assessmentType": {
+          "type": "string",
+          "enum": ["PUBLIC_ASSESSMENT", "VERIFIED_MERCHANT"],
+          "description": "Assessment phase. PUBLIC_ASSESSMENT uses 4 dimensions with publicly verifiable data. VERIFIED_MERCHANT uses all 7 dimensions with merchant-provided API data."
+        },
+        "dimensions": {
+          "$ref": "#/$defs/TrustDimensions"
+        },
+        "category": {
+          "type": ["string", "null"],
+          "description": "Merchant business category (e.g., 'Fashion & Apparel', 'Electronics')."
+        },
+        "dataConfidence": {
+          "type": "string",
+          "enum": ["HIGH_CONFIDENCE", "LOW_CONFIDENCE", "INSUFFICIENT"],
+          "description": "Data confidence label (display-only, does NOT affect scoring). HIGH_CONFIDENCE: >=3 months data. LOW_CONFIDENCE: 1-3 months. INSUFFICIENT: <1 month."
+        },
+        "antiGaming": {
+          "$ref": "#/$defs/AntiGamingResult"
+        },
+        "verificationData": {
+          "$ref": "#/$defs/VerificationData"
+        },
+        "entityData": {
+          "$ref": "#/$defs/EntityData"
+        },
+        "dataSources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DataSource"
+          },
+          "description": "List of data sources used to compute this trust assessment. Provides provenance for auditability."
+        },
+        "trancoRank": {
+          "type": ["integer", "null"],
+          "minimum": 1,
+          "description": "Tranco domain popularity rank. 1 = most popular. null if not ranked."
+        },
+        "isMerchantAuthorized": {
+          "type": "boolean",
+          "description": "Whether the merchant has authorized OTR via API integration (Verified Merchant status)."
+        },
+        "orbexaStoreUrl": {
+          "type": ["string", "null"],
+          "format": "uri",
+          "description": "URL to the merchant's ORBEXA store page, if available."
+        },
+        "auditVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Audit version number. Incremented each time the merchant is re-assessed."
+        },
+        "lastVerified": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last trust assessment (ISO 8601)."
+        },
+        "issuedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Manifest issuance timestamp (ISO 8601). The time this manifest was generated."
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Manifest expiration timestamp (ISO 8601). Consumers MUST NOT use manifests past this date. SHOULD be no more than 30 days from issuedAt."
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Issuer identifier. The validator that produced this assessment (e.g., 'orbexa.io')."
+        },
+        "issuerKeyId": {
+          "type": "string",
+          "description": "Public key identifier for signature verification. References the issuer's signing key."
+        }
       },
-      "additionalProperties": false,
-      "description": "Individual dimension scores"
+      "additionalProperties": false
     },
-    "issuedAt": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Issuance timestamp (ISO 8601)"
+    "SignedTrustManifest": {
+      "type": "object",
+      "title": "OTR Signed Trust Manifest",
+      "description": "A trust manifest wrapped in a cryptographic signature envelope using ECDSA P-256. The signature covers the canonical JSON serialization of the manifest object.",
+      "required": ["manifest", "signature", "keyId"],
+      "properties": {
+        "manifest": {
+          "$ref": "#/$defs/TrustManifest"
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "description": "Base64url-encoded ECDSA P-256 signature over the SHA-256 hash of the canonical JSON serialization of the manifest object."
+        },
+        "keyId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Public key identifier. Used to retrieve the issuer's public key for signature verification."
+        },
+        "algorithm": {
+          "type": "string",
+          "const": "ES256",
+          "description": "Signature algorithm. MUST be ES256 (ECDSA using P-256 and SHA-256)."
+        }
+      },
+      "additionalProperties": false
     },
-    "expiresAt": {
-      "type": "string",
-      "format": "date-time",
-      "description": "Expiration timestamp (ISO 8601)"
+    "TrustDimensions": {
+      "type": "object",
+      "title": "Trust Dimension Scores",
+      "description": "Individual scores for all 7 trust dimensions. Each score is in the range [0, 100].",
+      "required": [
+        "identity",
+        "technical",
+        "compliance",
+        "policyScore",
+        "webPresence",
+        "dataQuality",
+        "fulfillment"
+      ],
+      "properties": {
+        "identity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Identity credibility score. Measures unforgeable brand identity signals (SEC filings, Wikidata, Tranco rank, company age)."
+        },
+        "technical": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Technical security score. Measures DNS/SSL security configuration (DMARC, SPF, DKIM, HSTS, SSL type)."
+        },
+        "compliance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Compliance certification score. Status-based scoring (VERIFIED=85, PARTIAL=72, INFERRED=50, PENDING=0)."
+        },
+        "policyScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Policy completeness score. Measures consumer policy pages (privacy, refund, terms, cookie consent)."
+        },
+        "webPresence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Web presence professionalism score. Measures website quality and AI discoverability (Schema.org, sitemap, robots.txt)."
+        },
+        "dataQuality": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Data quality score. Measures product catalog completeness (requires Verified Merchant API integration)."
+        },
+        "fulfillment": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Fulfillment capability score. Measures order fulfillment performance (requires Verified Merchant API integration)."
+        }
+      },
+      "additionalProperties": false
     },
-    "issuer": {
-      "type": "string",
-      "minLength": 1,
-      "description": "Issuer identifier (e.g., 'orbexa.io')"
+    "AntiGamingResult": {
+      "type": "object",
+      "title": "Anti-Gaming Detection Result",
+      "description": "Result of anti-gaming analysis. Included when gaming patterns are detected (severity != CLEAN).",
+      "required": ["severity", "multiplier", "patterns"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["CLEAN", "SUSPICIOUS", "LIKELY_GAMING"],
+          "description": "Overall gaming severity. CLEAN: no patterns. SUSPICIOUS: moderate indicators. LIKELY_GAMING: strong indicators."
+        },
+        "multiplier": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Multiplier applied to gameable dimensions (Technical, PolicyScore, WebPresence). 1.0 = no adjustment."
+        },
+        "patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of detected gaming patterns with human-readable descriptions."
+        }
+      },
+      "additionalProperties": false
+    },
+    "VerificationData": {
+      "type": "object",
+      "title": "Verification Evidence",
+      "description": "Detailed verification evidence for each trust dimension. Provides provenance and evidence descriptions for auditability.",
+      "required": ["tiers"],
+      "properties": {
+        "tiers": {
+          "type": "object",
+          "description": "Verification tier details for each dimension.",
+          "properties": {
+            "identity": { "$ref": "#/$defs/TierDetail" },
+            "technical": { "$ref": "#/$defs/TierDetail" },
+            "compliance": { "$ref": "#/$defs/TierDetail" },
+            "policyScore": { "$ref": "#/$defs/TierDetail" },
+            "webPresence": { "$ref": "#/$defs/TierDetail" },
+            "dataQuality": { "$ref": "#/$defs/TierDetail" },
+            "fulfillment": { "$ref": "#/$defs/TierDetail" }
+          },
+          "required": ["identity", "compliance", "dataQuality", "fulfillment"],
+          "additionalProperties": false
+        },
+        "scanMetadata": {
+          "type": "object",
+          "description": "Metadata about the scanning process that produced this assessment.",
+          "properties": {
+            "scanner": {
+              "type": "string",
+              "description": "Scanner identifier (e.g., 'otr-scanner/3.0')."
+            },
+            "lastScanAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "Timestamp of the last scan (ISO 8601)."
+            },
+            "scanVersion": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Scanner version number."
+            }
+          },
+          "additionalProperties": false
+        },
+        "schema_version": {
+          "type": "string",
+          "description": "Verification data schema version."
+        }
+      },
+      "additionalProperties": false
+    },
+    "TierDetail": {
+      "type": "object",
+      "title": "Verification Tier Detail",
+      "description": "Verification evidence for a single dimension.",
+      "required": ["status", "evidence", "source"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["VERIFIED", "PARTIAL", "PENDING", "INFERRED", "FAILED"],
+          "description": "Verification status for this dimension."
+        },
+        "evidence": {
+          "type": "string",
+          "description": "Human-readable evidence description (e.g., 'Stock: NYSE, Wikidata verified, Corporate registry verified')."
+        },
+        "source": {
+          "type": "string",
+          "description": "Primary data source identifier (e.g., 'sec.gov', 'wikidata.org', 'dns-scan', 'merchant-api')."
+        }
+      },
+      "additionalProperties": false
+    },
+    "EntityData": {
+      "type": ["object", "null"],
+      "title": "Entity Data",
+      "description": "Corporate entity information for the merchant, when available from public data sources.",
+      "properties": {
+        "stockSymbol": {
+          "type": ["string", "null"],
+          "description": "Stock ticker symbol (e.g., 'NKE', 'AMZN')."
+        },
+        "stockExchange": {
+          "type": ["string", "null"],
+          "description": "Stock exchange code (e.g., 'NYSE', 'NASDAQ')."
+        },
+        "headquarters": {
+          "type": ["string", "null"],
+          "description": "Headquarters location (e.g., 'Beaverton, Oregon, USA')."
+        },
+        "jurisdiction": {
+          "type": ["string", "null"],
+          "description": "Legal jurisdiction of incorporation."
+        },
+        "foundingDate": {
+          "type": ["string", "null"],
+          "description": "Year or date of company founding."
+        },
+        "industry": {
+          "type": ["string", "null"],
+          "description": "Industry classification."
+        },
+        "parentCompany": {
+          "type": ["string", "null"],
+          "description": "Parent company name, if applicable."
+        },
+        "wikidataId": {
+          "type": ["string", "null"],
+          "pattern": "^Q[0-9]+$",
+          "description": "Wikidata QID (e.g., 'Q483915')."
+        },
+        "stockListings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "exchange": { "type": "string" },
+              "symbol": { "type": "string" },
+              "country": { "type": "string" }
+            },
+            "additionalProperties": true
+          },
+          "description": "All known stock exchange listings for this entity."
+        }
+      },
+      "additionalProperties": true
+    },
+    "DataSource": {
+      "type": "object",
+      "title": "Data Source Reference",
+      "description": "A data source used to compute the trust assessment.",
+      "required": ["name", "url", "lastChecked"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Data source name (e.g., 'SEC EDGAR', 'Wikidata', 'Tranco List')."
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the data source or the specific query used."
+        },
+        "lastChecked": {
+          "type": "string",
+          "format": "date",
+          "description": "Date when this data source was last queried (ISO 8601 date)."
+        }
+      },
+      "additionalProperties": false
     }
-  },
-  "additionalProperties": false
+  }
 }
