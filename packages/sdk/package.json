@@ -1,0 +1,37 @@
+{
+  "name": "@otr-protocol/sdk",
+  "version": "3.0.0",
+  "description": "OTR Protocol SDK — TypeScript client for merchant trust verification",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "trust",
+    "sdk",
+    "ai-agent",
+    "commerce",
+    "merchant-verification",
+    "otr"
+  ],
+  "author": "ORBEXA <dev@orbexa.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/otr-protocol",
+    "directory": "packages/sdk"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

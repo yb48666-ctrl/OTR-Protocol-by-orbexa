@@ -1,0 +1,36 @@
+{
+  "name": "otr-protocol",
+  "private": true,
+  "version": "3.0.0",
+  "description": "Open Trust Registry — Merchant trust verification protocol for AI agent commerce",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "conformance": "npx tsx conformance/runner.ts",
+    "lint": "eslint packages/*/src/**/*.ts",
+    "clean": "rm -rf packages/*/dist"
+  },
+  "keywords": [
+    "trust",
+    "ai-agent",
+    "commerce",
+    "merchant-verification",
+    "mcp",
+    "agentic-commerce"
+  ],
+  "author": "ORBEXA <dev@orbexa.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/otr-protocol"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "vitest": "^3.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

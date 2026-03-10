@@ -1,0 +1,39 @@
+{
+  "name": "@otr-protocol/core",
+  "version": "3.0.0",
+  "description": "OTR Protocol — Deterministic trust scoring engine for AI agent commerce",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "trust",
+    "scoring",
+    "ai-agent",
+    "commerce",
+    "merchant-verification",
+    "otr",
+    "agentic-commerce"
+  ],
+  "author": "ORBEXA <dev@orbexa.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/otr-protocol",
+    "directory": "packages/core"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}

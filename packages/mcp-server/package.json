@@ -1,0 +1,38 @@
+{
+  "name": "@otr-protocol/mcp-server",
+  "version": "3.0.0",
+  "description": "OTR Protocol MCP Server — Merchant trust verification tools for AI agents",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "otr-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "trust",
+    "ai-agent",
+    "commerce",
+    "merchant-verification",
+    "otr"
+  ],
+  "author": "ORBEXA <dev@orbexa.io>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anthropics/otr-protocol",
+    "directory": "packages/mcp-server"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

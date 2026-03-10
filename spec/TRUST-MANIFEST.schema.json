@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otr-protocol.org/schemas/trust-manifest-v3.json",
+  "title": "OTR Trust Manifest v3",
+  "description": "Machine-readable trust declaration published by merchants at /.well-known/otr/trust.json",
+  "type": "object",
+  "required": ["version", "domain", "trustScore", "badge", "dimensions", "issuedAt", "expiresAt", "issuer"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^3\\.",
+      "description": "Schema version (must start with 3.)"
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Merchant domain name"
+    },
+    "trustScore": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 94,
+      "description": "Composite trust score (95+ reserved for manual review)"
+    },
+    "badge": {
+      "type": "string",
+      "enum": ["PLATINUM", "GOLD", "SILVER", "BRONZE", "UNRATED"],
+      "description": "Trust badge level"
+    },
+    "dimensions": {
+      "type": "object",
+      "required": ["identity", "technical", "compliance", "policyScore", "webPresence", "dataQuality", "fulfillment"],
+      "properties": {
+        "identity": { "type": "number", "minimum": 0, "maximum": 100 },
+        "technical": { "type": "number", "minimum": 0, "maximum": 100 },
+        "compliance": { "type": "number", "minimum": 0, "maximum": 100 },
+        "policyScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "webPresence": { "type": "number", "minimum": 0, "maximum": 100 },
+        "dataQuality": { "type": "number", "minimum": 0, "maximum": 100 },
+        "fulfillment": { "type": "number", "minimum": 0, "maximum": 100 }
+      },
+      "additionalProperties": false,
+      "description": "Individual dimension scores"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Issuance timestamp (ISO 8601)"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Expiration timestamp (ISO 8601)"
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Issuer identifier (e.g., 'orbexa.io')"
+    }
+  },
+  "additionalProperties": false
+}
