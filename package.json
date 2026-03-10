@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anthropics/otr-protocol"
+    "url": "https://github.com/yb48666-ctrl/OTR-Protocol"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

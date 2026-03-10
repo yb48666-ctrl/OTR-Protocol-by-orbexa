@@ -26,7 +26,7 @@ There are many ways to contribute to OTR Protocol, regardless of your experience
 
 - **Report bugs** -- Found something that does not work as expected? Open an issue.
 - **Suggest features** -- Have an idea for a new dimension, data source, or tool? Start a discussion.
-- **Fix bugs** -- Browse [open issues](https://github.com/anthropics/otr-protocol/issues?q=is%3Aissue+is%3Aopen+label%3Abug) and submit a fix.
+- **Fix bugs** -- Browse [open issues](https://github.com/yb48666-ctrl/OTR-Protocol/issues?q=is%3Aissue+is%3Aopen+label%3Abug) and submit a fix.
 - **Improve documentation** -- Better docs help everyone. Fix typos, add examples, improve clarity.
 - **Write conformance tests** -- Help ensure scoring determinism across implementations.
 - **Implement in a new language** -- Port the scoring engine to Python, Go, Rust, or other languages.
@@ -39,7 +39,7 @@ There are many ways to contribute to OTR Protocol, regardless of your experience
 
 1. **Read the docs** -- Familiarize yourself with the [Protocol Specification](spec/OTR-SPEC-v3.md) and [Scoring Algorithm](spec/SCORING-ALGORITHM-v3.md).
 2. **Understand the principles** -- Review the [Governance Model](GOVERNANCE.md), especially the Scoring Fairness commitments.
-3. **Check existing issues** -- Look for issues labeled [`good first issue`](https://github.com/anthropics/otr-protocol/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or [`help wanted`](https://github.com/anthropics/otr-protocol/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
+3. **Check existing issues** -- Look for issues labeled [`good first issue`](https://github.com/yb48666-ctrl/OTR-Protocol/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) or [`help wanted`](https://github.com/yb48666-ctrl/OTR-Protocol/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
 4. **Set up your environment** -- Follow the development setup instructions below.
 
 ---

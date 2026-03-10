@@ -284,7 +284,7 @@ This governance document may be amended through the standard RFC process with a 
 
 ## Contact
 
-- **Protocol discussions**: [GitHub Discussions](https://github.com/anthropics/otr-protocol/discussions)
-- **Bug reports**: [GitHub Issues](https://github.com/anthropics/otr-protocol/issues)
+- **Protocol discussions**: [GitHub Discussions](https://github.com/yb48666-ctrl/OTR-Protocol/discussions)
+- **Bug reports**: [GitHub Issues](https://github.com/yb48666-ctrl/OTR-Protocol/issues)
 - **Security vulnerabilities**: security@orbexa.io (see [SECURITY.md](SECURITY.md))
 - **Governance questions**: governance@orbexa.io

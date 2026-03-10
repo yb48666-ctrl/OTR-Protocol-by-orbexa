@@ -67,9 +67,11 @@ npx @otr-protocol/mcp-server
 npm install @otr-protocol/sdk
 ```
 
-### MCP Server (Claude Desktop / AI Agents)
+### MCP Server (All AI Agents)
 
-Add to your `claude_desktop_config.json`:
+The OTR MCP Server uses the standard [Model Context Protocol](https://modelcontextprotocol.io) and works with **all MCP-compatible clients** -- not just Claude.
+
+**Claude Desktop / Claude Code** -- add to `claude_desktop_config.json`:
 
 ```json
 {
@@ -81,6 +83,21 @@ Add to your `claude_desktop_config.json`:
   }
 }
 ```
+
+**Cursor** -- add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "otr": {
+      "command": "npx",
+      "args": ["@otr-protocol/mcp-server"]
+    }
+  }
+}
+```
+
+**Windsurf / Cline / Any MCP Client** -- same configuration format. The OTR MCP Server communicates over `stdio` transport, compatible with any client that implements the MCP specification.
 
 Now any AI agent can verify merchants in natural language:
 
