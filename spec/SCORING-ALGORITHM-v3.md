@@ -287,7 +287,7 @@ Compliance uses a status-based model with optional pre-computed score override.
 | Status / Condition                   | Score | Condition                                    |
 |--------------------------------------|-------|----------------------------------------------|
 | Pre-computed score                   | value | `complianceScore > 0` — use directly         |
-| VERIFIED                             | 85    | `complianceStatus === "VERIFIED"`            |
+| VERIFIED                             | 90    | `complianceStatus === "VERIFIED"`            |
 | PARTIAL                              | 72    | `complianceStatus === "PARTIAL"`             |
 | INFERRED (high-compliance industry)  | 50    | `category` is in high-compliance industries  |
 | PENDING                              | 0     | Default / no compliance data                 |
@@ -300,7 +300,7 @@ function scoreCompliance(evidence):
     if evidence.complianceScore > 0:
         return clamp(evidence.complianceScore, 0, 100)
 
-    if evidence.complianceStatus == "VERIFIED": return 85
+    if evidence.complianceStatus == "VERIFIED": return 90
     if evidence.complianceStatus == "PARTIAL": return 72
 
     if evidence.category in HIGH_COMPLIANCE_INDUSTRIES: return 50
@@ -571,9 +571,10 @@ function applyAntiGamingMultiplier(dimensions, multiplier):
 | Pattern                  | Multiplier | Trigger Condition                                       |
 |--------------------------|-----------|----------------------------------------------------------|
 | Signal-Brand Mismatch    | ×0.5      | tech >= 80, no established identity, young/unknown domain |
+| Identity-Gameable Gap    | ×0.7      | identity < 20, avg gameable > 70, no Tranco/Wikidata     |
 | Domain Age < 6 months    | ×0.5      | `companyAge < 0.5`                                       |
 | Domain Age < 1 year      | ×0.75     | `companyAge < 1.0`                                       |
-| Perfect Gameable / Time Clustering | ×0.7 | All 3 gameable dims >= 90, identity < 30            |
+| Template Policy Detected | ×0.5      | Known template generator + domain < 12mo + no established identity |
 
 When multiple patterns are detected, the **lowest** (most severe) multiplier is applied.
 
@@ -725,7 +726,7 @@ Conformant implementations MUST produce identical outputs for the standard test 
   "expectedPhase": "PUBLIC_ASSESSMENT",
   "expectedDimensions": {
     "identity": 65,
-    "technical": 96,
+    "technical": 90,
     "compliance": 0,
     "policyScore": 90,
     "webPresence": 85,
@@ -742,14 +743,13 @@ Conformant implementations MUST produce identical outputs for the standard test 
 **Calculation walkthrough:**
 ```
 Identity:    20 (NYSE) + 15 (Wikidata) + 10 (Age>=10) + 5 (HQ) + 15 (Tranco<=1K) = 65
-Technical:   25 (EV) + 20 (DMARC reject) + 15 (SPF) + 10 (DKIM) + 10 (HSTS) + 5 (CAA) + 5 (security.txt) = 90 → clamped at 90
+Technical:   25 (EV) + 20 (DMARC reject) + 15 (SPF) + 10 (DKIM) + 10 (HSTS) + 5 (CAA) + 5 (security.txt) = 90
 PolicyScore: 20 (Privacy) + 10 (GDPR) + 10 (CCPA) + 20 (Refund) + 5 (Return>=30d) + 15 (ToS) + 10 (Cookie) = 90
 WebPresence: 10 (robots) + 5 (crawlers) + 10 (sitemap) + 15 (Schema.org) + 10 (Org) + 5 (multi-lang) + 5 (viewport) + 5 (favicon) + 20 (content) = 85
 Phase: PUBLIC_ASSESSMENT (no merchant data)
 Composite:   65×0.55 + 90×0.15 + 90×0.15 + 85×0.15 = 35.75 + 13.5 + 13.5 + 12.75 = 75.5
 Fast-Track:  NYSE + Top1K + Wikidata → +15
-Final:       min(round(75.5 + 15), 94) = min(91, 94) = 91
-Badge:       PLATINUM (91 >= 90)
+Final:       min(round(75.5 + 15), 94) = min(91, 94) = 91 → PLATINUM
 ```
 
 > **Note:** Full conformance test vectors are in `conformance/test-vectors.json`. The above is illustrative; actual test vectors are the normative reference.
