@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/yb48666-ctrl/OTR-Protocol/main/assets/otr-logo.svg" alt="OTR Protocol" width="80" />
+  <img src="https://raw.githubusercontent.com/yb48666-ctrl/OTR-Protocol-by-orbexa/main/assets/otr-logo.svg" alt="OTR Protocol" width="80" />
 </p>
 
 <h1 align="center">OTR Protocol</h1>
@@ -12,8 +12,8 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@otr-protocol/core"><img src="https://img.shields.io/npm/v/@otr-protocol/core.svg?style=flat-square&color=22D3EE" alt="npm" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="MIT License" /></a>
-  <a href="https://github.com/yb48666-ctrl/OTR-Protocol/stargazers"><img src="https://img.shields.io/github/stars/yb48666-ctrl/OTR-Protocol?style=flat-square&color=yellow" alt="GitHub Stars" /></a>
-  <a href="https://github.com/yb48666-ctrl/OTR-Protocol/issues"><img src="https://img.shields.io/github/issues/yb48666-ctrl/OTR-Protocol?style=flat-square" alt="Issues" /></a>
+  <a href="https://github.com/yb48666-ctrl/OTR-Protocol-by-orbexa/stargazers"><img src="https://img.shields.io/github/stars/yb48666-ctrl/OTR-Protocol-by-orbexa?style=flat-square&color=yellow" alt="GitHub Stars" /></a>
+  <a href="https://github.com/yb48666-ctrl/OTR-Protocol-by-orbexa/issues"><img src="https://img.shields.io/github/issues/yb48666-ctrl/OTR-Protocol-by-orbexa?style=flat-square" alt="Issues" /></a>
 </p>
 
 <p align="center">

@@ -24,7 +24,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yb48666-ctrl/OTR-Protocol",
+    "url": "https://github.com/yb48666-ctrl/OTR-Protocol-by-orbexa",
     "directory": "packages/mcp-server"
   },
   "dependencies": {

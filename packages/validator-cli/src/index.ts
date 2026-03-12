@@ -331,7 +331,7 @@ function printHelp(): void {
   ${BOLD}ABOUT${RESET}
     Open Trust Registry (OTR) Protocol v3.0
     Deterministic merchant trust scoring for AI agent commerce
-    https://github.com/yb48666-ctrl/OTR-Protocol
+    https://github.com/yb48666-ctrl/OTR-Protocol-by-orbexa
 `);
 }
 
