@@ -290,6 +290,67 @@ export interface ScoreResult {
 }
 
 // ============================================================================
+// v3.1 Capabilities Layer — Non-scoring merchant capability output
+// ============================================================================
+
+/** Merchant e-commerce capabilities (NOT used in scoring — gameable signals) */
+export interface MerchantCapabilities {
+  /** Can an AI agent complete a purchase on this site? */
+  canPurchase: boolean;
+  /** Detected e-commerce platform (shopify/woocommerce/magento/bigcommerce/custom) */
+  ecommercePlatform: string | null;
+  /** Platform detection confidence (0-1) */
+  ecommerceConfidence: number;
+  /** Detected payment methods */
+  paymentMethods: string[];
+  /** Has live customer support (chat widget detected) */
+  hasLiveSupport: boolean;
+  /** Detected support channels (zendesk, email, phone, intercom, etc.) */
+  supportChannels: string[];
+  /** Social media platforms with active presence */
+  socialPresence: string[];
+  /** Physical business address detected */
+  hasPhysicalAddress: boolean;
+  /** Business email (non-gmail/yahoo/hotmail) detected */
+  hasBusinessEmail: boolean;
+}
+
+/** Discovered merchant links */
+export interface MerchantLinks {
+  policies: {
+    privacy: string | null;
+    refund: string | null;
+    terms: string | null;
+    cookie: string | null;
+    shipping: string | null;
+  };
+  commerce: {
+    cart: string | null;
+    checkout: string | null;
+    products: string | null;
+    search: string | null;
+  };
+  contact: {
+    email: string | null;
+    phone: string | null;
+    supportPage: string | null;
+  };
+  social: Record<string, string>;
+}
+
+/** Data freshness metadata */
+export interface FreshnessInfo {
+  /** When data was last verified (ISO 8601) */
+  lastVerifiedAt: string | null;
+  /** Data age category: FRESH (<7d), AGING (7-30d), STALE (>30d) */
+  dataAge: "FRESH" | "AGING" | "STALE";
+  /** Scan engine version */
+  scanVersion: number | null;
+  /** Signal sources used (static-http, cloudflare-br, wikidata, sec, tranco) */
+  signalSources: string[];
+}
+
+// ============================================================================
 // Trust Manifest (trust.json) — Machine-readable trust declaration
 // ============================================================================
 

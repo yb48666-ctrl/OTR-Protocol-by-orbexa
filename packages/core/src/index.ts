@@ -44,6 +44,9 @@ export type {
   VerificationData,
   TrustManifest,
   SignedTrustManifest,
+  MerchantCapabilities,
+  MerchantLinks,
+  FreshnessInfo,
 } from "./types";
 
 export {

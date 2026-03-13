@@ -20,7 +20,7 @@
  * const results = await otr.search({ category: "Electronics", minScore: 70 });
  * ```
  *
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 // ============================================================================
@@ -43,6 +43,50 @@ export interface TierDetail {
   evidence: string;
 }
 
+/** Merchant e-commerce capabilities (non-scoring output layer) */
+export interface MerchantCapabilities {
+  canPurchase: boolean;
+  ecommercePlatform: string | null;
+  ecommerceConfidence: number;
+  paymentMethods: string[];
+  hasLiveSupport: boolean;
+  supportChannels: string[];
+  socialPresence: string[];
+  hasPhysicalAddress: boolean;
+  hasBusinessEmail: boolean;
+}
+
+/** Discovered merchant links */
+export interface MerchantLinks {
+  policies: {
+    privacy: string | null;
+    refund: string | null;
+    terms: string | null;
+    cookie: string | null;
+    shipping: string | null;
+  };
+  commerce: {
+    cart: string | null;
+    checkout: string | null;
+    products: string | null;
+    search: string | null;
+  };
+  contact: {
+    email: string | null;
+    phone: string | null;
+    supportPage: string | null;
+  };
+  social: Record<string, string>;
+}
+
+/** Data freshness metadata */
+export interface FreshnessInfo {
+  lastVerifiedAt: string | null;
+  dataAge: "FRESH" | "AGING" | "STALE";
+  scanVersion: number | null;
+  signalSources: string[];
+}
+
 /** Verification data containing all dimension evidence */
 export interface VerificationData {
   tiers: {
@@ -54,6 +98,14 @@ export interface VerificationData {
     policyScore: TierDetail;
     webPresence: TierDetail;
   };
+  /** v3.1: Merchant e-commerce capabilities */
+  capabilities?: MerchantCapabilities;
+  /** v3.1: Discovered site links */
+  links?: MerchantLinks;
+  /** v3.1: Data freshness info */
+  freshness?: FreshnessInfo;
+  /** v3.1: Policy page URLs */
+  policyUrls?: Record<string, string>;
   scanMetadata?: {
     scanner: string;
     lastScanAt: string;
@@ -299,7 +351,7 @@ export class OtrClient {
       return await this.fetchFn(`${this.baseUrl}${path}`, {
         headers: {
           Accept: "application/json",
-          "User-Agent": "@otr-protocol/sdk/3.0.0",
+          "User-Agent": "@otr-protocol/sdk/3.1.0",
         },
         signal: controller.signal,
       });

@@ -110,13 +110,14 @@ Now any AI agent can verify merchants in natural language:
 
 > *"Is nike.com trustworthy?"* --> OTR returns trust score 88, badge GOLD, and a 7-dimension breakdown with evidence sources.
 
-### Three MCP Tools
+### Two MCP Tools — One Call = Complete Answer
 
-| Tool | Description | Example |
+| Tool | Description | Returns |
 |------|-------------|---------|
-| `verify_merchant` | Full trust report for a domain | `verify_merchant({ domain: "nike.com" })` |
-| `search_registry` | Search the OTR merchant registry | `search_registry({ query: "nike", limit: 10 })` |
-| `get_refund_policy` | Machine-readable refund policy | `get_refund_policy({ domain: "nike.com" })` |
+| `verify_merchant` | Complete merchant profile in one call | Trust score, badge, 7-dimension breakdown, capabilities (canPurchase, payment methods, support), links (policies, commerce, contact, social), freshness, entity data |
+| `search_registry` | Search the OTR merchant registry | Paginated merchant list with scores and recommendations |
+
+**Design philosophy:** AI agents should get everything they need in a single tool call. `verify_merchant` returns trust assessment + purchase capabilities + links + policy URLs + data freshness — no need to chain multiple calls.
 
 ### TypeScript SDK
 

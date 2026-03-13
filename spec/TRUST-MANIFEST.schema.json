@@ -104,6 +104,41 @@
           "format": "uri",
           "description": "URL to the merchant's ORBEXA store page, if available."
         },
+        "capabilities": {
+          "type": "object",
+          "description": "v3.1: Merchant e-commerce capabilities. Non-scoring output layer — these signals are gameable and NOT used in trust score calculation.",
+          "properties": {
+            "canPurchase": { "type": "boolean", "description": "Whether an AI agent can complete a purchase on this site." },
+            "ecommercePlatform": { "type": ["string", "null"], "description": "Detected e-commerce platform (shopify/woocommerce/magento/bigcommerce/custom)." },
+            "ecommerceConfidence": { "type": "number", "minimum": 0, "maximum": 1, "description": "Platform detection confidence (0-1)." },
+            "paymentMethods": { "type": "array", "items": { "type": "string" }, "description": "Detected payment methods." },
+            "hasLiveSupport": { "type": "boolean", "description": "Has live customer support (chat widget detected)." },
+            "supportChannels": { "type": "array", "items": { "type": "string" }, "description": "Detected support channels." },
+            "socialPresence": { "type": "array", "items": { "type": "string" }, "description": "Social media platforms with active presence." },
+            "hasPhysicalAddress": { "type": "boolean", "description": "Physical business address detected." },
+            "hasBusinessEmail": { "type": "boolean", "description": "Business email (non-gmail/yahoo) detected." }
+          }
+        },
+        "links": {
+          "type": "object",
+          "description": "v3.1: Discovered merchant links — policy pages, commerce endpoints, contact info, social profiles.",
+          "properties": {
+            "policies": { "type": "object", "properties": { "privacy": { "type": ["string", "null"] }, "refund": { "type": ["string", "null"] }, "terms": { "type": ["string", "null"] }, "cookie": { "type": ["string", "null"] }, "shipping": { "type": ["string", "null"] } } },
+            "commerce": { "type": "object", "properties": { "cart": { "type": ["string", "null"] }, "checkout": { "type": ["string", "null"] }, "products": { "type": ["string", "null"] }, "search": { "type": ["string", "null"] } } },
+            "contact": { "type": "object", "properties": { "email": { "type": ["string", "null"] }, "phone": { "type": ["string", "null"] }, "supportPage": { "type": ["string", "null"] } } },
+            "social": { "type": "object", "additionalProperties": { "type": "string" } }
+          }
+        },
+        "freshness": {
+          "type": "object",
+          "description": "v3.1: Data freshness metadata for AI agent data-age-aware decisions.",
+          "properties": {
+            "lastVerifiedAt": { "type": ["string", "null"], "format": "date-time" },
+            "dataAge": { "type": "string", "enum": ["FRESH", "AGING", "STALE"], "description": "FRESH (<7d), AGING (7-30d), STALE (>30d)." },
+            "scanVersion": { "type": ["integer", "null"] },
+            "signalSources": { "type": "array", "items": { "type": "string" } }
+          }
+        },
         "auditVersion": {
           "type": "integer",
           "minimum": 1,

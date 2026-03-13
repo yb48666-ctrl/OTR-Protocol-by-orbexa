@@ -768,9 +768,53 @@ OTR trust scores are computed using **deterministic, open-source algorithms** ba
 
 6. **Verifiable Reproducibility** — The conformance test suite provides standard test vectors. Any implementation that passes all test vectors is guaranteed to produce identical scores for any input.
 
-## 20. Conformance
+## 20. Capabilities Layer (v3.1)
 
-### 20.1 Test Vectors
+The Capabilities Layer is a non-scoring output layer that provides AI agents with actionable merchant metadata. These signals are inherently gameable and MUST NOT participate in trust score calculation.
+
+### 20.1 Design Principle
+
+Trust scoring uses only unforgeable signals (SEC filings, Wikidata, domain age, Tranco rank). Capabilities use browser-detectable signals (payment badges, chat widgets, social links) that merchants can trivially fabricate. Mixing gameable signals into scoring would undermine the protocol's anti-gaming guarantees.
+
+### 20.2 MerchantCapabilities
+
+| Field | Type | Description |
+|-------|------|-------------|
+| canPurchase | boolean | Has cart + checkout flow = AI agent can complete a purchase |
+| ecommercePlatform | string? | Detected platform (shopify/woocommerce/magento/bigcommerce/custom) |
+| ecommerceConfidence | number | Platform detection confidence (0-1) |
+| paymentMethods | string[] | Detected payment methods (visa, mastercard, paypal, apple-pay, etc.) |
+| hasLiveSupport | boolean | Live chat widget detected |
+| supportChannels | string[] | Detected support channels (zendesk, email, phone, intercom) |
+| socialPresence | string[] | Social platforms with detected presence |
+| hasPhysicalAddress | boolean | Physical business address found |
+| hasBusinessEmail | boolean | Non-free-provider business email found |
+
+### 20.3 MerchantLinks
+
+Organized into four categories: policies (privacy, refund, terms, cookie, shipping), commerce (cart, checkout, products, search), contact (email, phone, support page), and social (platform-keyed URLs).
+
+### 20.4 FreshnessInfo
+
+| Field | Type | Description |
+|-------|------|-------------|
+| lastVerifiedAt | string? | ISO 8601 timestamp of last verification |
+| dataAge | enum | FRESH (<7 days), AGING (7-30 days), STALE (>30 days) |
+| scanVersion | number? | Scanner engine version |
+| signalSources | string[] | Sources used (static-http, cloudflare-br, wikidata, sec, tranco) |
+
+### 20.5 MCP Tool Design
+
+The MCP Server exposes 2 tools (not 5). `verify_merchant` returns the complete merchant profile including capabilities, links, and freshness in a single call. This minimizes AI agent round-trips and reduces latency/cost.
+
+| Tool | Purpose |
+|------|---------|
+| verify_merchant | Complete profile: trust + capabilities + links + policies + freshness |
+| search_registry | Discovery: search by name, category, score, badge |
+
+## 21. Conformance
+
+### 21.1 Test Vectors
 
 Implementations MUST produce identical outputs for the standard test vectors in `conformance/test-vectors.json`. The conformance test runner validates:
 
@@ -781,13 +825,13 @@ Implementations MUST produce identical outputs for the standard test vectors in 
 - Badge assignment
 - Tier assignment
 
-### 20.2 Running Conformance Tests
+### 21.2 Running Conformance Tests
 
 ```bash
 npx tsx conformance/runner.ts
 ```
 
-### 20.3 Conformance Levels
+### 21.3 Conformance Levels
 
 | Level      | Requirement                                          |
 |-----------|------------------------------------------------------|
@@ -797,9 +841,9 @@ npx tsx conformance/runner.ts
 
 Only FULL conformance qualifies an implementation for federation participation.
 
-## 21. Security Considerations
+## 22. Security Considerations
 
-### 21.1 Score Manipulation
+### 22.1 Score Manipulation
 
 The primary security threat is adversarial score manipulation. OTR mitigates this through:
 
@@ -808,18 +852,18 @@ The primary security threat is adversarial score manipulation. OTR mitigates thi
 - Domain age gates preventing newly-registered domains from achieving high scores
 - Score cap at 94 preventing perfect scores without manual review
 
-### 21.2 Data Integrity
+### 22.2 Data Integrity
 
 - All scoring evidence SHOULD be independently verifiable from public sources.
 - Signed trust manifests use ECDSA P-256 for tamper detection.
 - The transparency log uses Merkle trees for append-only integrity.
 - L2 blockchain anchoring provides external immutability guarantees.
 
-### 21.3 Privacy
+### 22.3 Privacy
 
 See [Data Desensitization Specification](./DATA-DESENSITIZATION.md) for the complete data handling and privacy specification. OTR scoring does NOT require or process consumer PII. All scoring inputs are merchant-level business data.
 
-## 22. References
+## 23. References
 
 | Document | Description |
 |----------|-------------|

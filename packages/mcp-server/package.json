@@ -1,7 +1,7 @@
 {
   "name": "@otr-protocol/mcp-server",
-  "version": "3.0.0",
-  "description": "OTR Protocol MCP Server — Merchant trust verification tools for AI agents",
+  "version": "3.1.0",
+  "description": "OTR Protocol MCP Server — 2 tools for complete merchant trust verification (verify + search). One call = full answer.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

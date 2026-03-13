@@ -4,11 +4,14 @@
  * OTR Protocol MCP Server — Merchant Trust Verification for AI Agents
  * ============================================================================
  *
- * Provides 3 MCP tools for AI agents to verify merchant trustworthiness:
+ * Provides 2 MCP tools for AI agents to verify merchant trustworthiness:
  *
- * 1. verify_merchant   — Check trust score for a domain
- * 2. search_registry   — Search the OTR merchant registry
- * 3. get_refund_policy — Get machine-readable refund policy
+ * 1. verify_merchant — Complete merchant profile: trust score, capabilities,
+ *    links, policy URLs, freshness, entity data. One call = full answer.
+ * 2. search_registry — Search the OTR merchant registry by name/category/score.
+ *
+ * Design philosophy: One tool call should give the AI agent everything it needs
+ * to make a trust decision. No need to chain multiple calls.
  *
  * Usage:
  *   npx @otr-protocol/mcp-server
@@ -23,7 +26,7 @@
  *     }
  *   }
  *
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -51,6 +54,47 @@ interface TierDetail {
   evidence: string;
 }
 
+interface MerchantCapabilities {
+  canPurchase: boolean;
+  ecommercePlatform: string | null;
+  ecommerceConfidence: number;
+  paymentMethods: string[];
+  hasLiveSupport: boolean;
+  supportChannels: string[];
+  socialPresence: string[];
+  hasPhysicalAddress: boolean;
+  hasBusinessEmail: boolean;
+}
+
+interface MerchantLinks {
+  policies: {
+    privacy: string | null;
+    refund: string | null;
+    terms: string | null;
+    cookie: string | null;
+    shipping: string | null;
+  };
+  commerce: {
+    cart: string | null;
+    checkout: string | null;
+    products: string | null;
+    search: string | null;
+  };
+  contact: {
+    email: string | null;
+    phone: string | null;
+    supportPage: string | null;
+  };
+  social: Record<string, string>;
+}
+
+interface FreshnessInfo {
+  lastVerifiedAt: string | null;
+  dataAge: "FRESH" | "AGING" | "STALE";
+  scanVersion: number | null;
+  signalSources: string[];
+}
+
 interface VerifyApiResponse {
   domain: string;
   name: string;
@@ -60,6 +104,11 @@ interface VerifyApiResponse {
   category: string | null;
   verificationData: {
     tiers: Record<string, TierDetail>;
+    capabilities?: MerchantCapabilities;
+    links?: MerchantLinks;
+    freshness?: FreshnessInfo;
+    policyUrls?: Record<string, string>;
+    businessSignals?: string;
     scanMetadata?: {
       scanner: string;
       lastScanAt: string;
@@ -91,17 +140,25 @@ interface RegistryApiResponse {
 
 const server = new McpServer({
   name: "otr-protocol",
-  version: "3.0.0",
+  version: "3.1.0",
 });
 
 // ============================================================================
-// Tool 1: verify_merchant
+// Tool 1: verify_merchant — Complete merchant profile in one call
 // ============================================================================
 
 // @ts-expect-error — MCP SDK Zod type inference recursion depth issue
 server.tool(
   "verify_merchant",
-  "Verify a merchant's trust score using the OTR Protocol. Returns trust score (0-94), badge (PLATINUM/GOLD/SILVER/BRONZE/UNRATED), 7-dimension breakdown, entity data, and verification evidence. Use this before recommending any merchant to a consumer.",
+  `Complete merchant trust verification. Returns everything an AI agent needs in ONE call:
+- Trust score (0-94) and badge (PLATINUM/GOLD/SILVER/BRONZE/UNRATED)
+- AI recommendation (SAFE_TO_RECOMMEND / RECOMMEND_WITH_NOTE / RECOMMEND_WITH_CAUTION / DO_NOT_RECOMMEND)
+- 7-dimension breakdown (identity, technical, compliance, policy, webPresence, dataQuality, fulfillment)
+- Capabilities: can purchase? payment methods, e-commerce platform, support channels
+- Links: policy pages (refund/privacy/terms URLs), commerce (cart/checkout), contact, social
+- Entity data: stock listing, headquarters, founding date, industry
+- Data freshness: when last verified, data age, signal sources
+Use this as the SINGLE tool for all merchant trust decisions. No need to chain multiple calls.`,
   {
     domain: z
       .string()
@@ -124,6 +181,7 @@ server.tool(
             trustScore: null,
             badge: "UNRATED",
             recommendation: "DO_NOT_RECOMMEND",
+            canPurchase: false,
             message: `${cleanDomain} is not in the OTR registry. This merchant has not been assessed. Exercise caution when recommending unverified merchants.`,
           });
         }
@@ -138,6 +196,7 @@ server.tool(
       }
 
       const data = (await response.json()) as VerifyApiResponse;
+      const vd = data.verificationData;
 
       const recommendation = getRecommendation(
         data.trustScore,
@@ -145,6 +204,7 @@ server.tool(
         data.isMerchantAuthorized,
       );
 
+      // ── Core trust assessment ──
       const result: Record<string, unknown> = {
         domain: data.domain,
         name: data.name,
@@ -157,22 +217,60 @@ server.tool(
           ? "VERIFIED_MERCHANT"
           : "PUBLIC_ASSESSMENT",
         isMerchantAuthorized: data.isMerchantAuthorized,
-        dimensions: data.trustDimensions,
-        verificationEvidence: formatVerificationEvidence(
-          data.verificationData?.tiers,
-        ),
         category: data.category,
         trancoRank: data.trancoRank,
         lastVerified: data.lastVerified,
-        registryUrl: `${OTR_API_BASE}/api/otr/verify/${data.domain}`,
       };
 
-      // Include entity data when available (stock listing, headquarters, etc.)
+      // ── 7-dimension scores ──
+      result.dimensions = data.trustDimensions;
+
+      // ── Capabilities: can purchase? payment, support, social ──
+      result.capabilities = vd?.capabilities ?? {
+        canPurchase: false,
+        ecommercePlatform: null,
+        ecommerceConfidence: 0,
+        paymentMethods: [],
+        hasLiveSupport: false,
+        supportChannels: [],
+        socialPresence: [],
+        hasPhysicalAddress: false,
+        hasBusinessEmail: false,
+      };
+
+      // ── Links: policy pages, commerce endpoints, contact, social ──
+      if (vd?.links) {
+        result.links = vd.links;
+      }
+
+      // ── Policy URLs (direct access) ──
+      const policyUrls = vd?.policyUrls ?? {};
+      const policyLinks = vd?.links?.policies;
+      result.policyUrls = {
+        refund: policyUrls.refund ?? policyLinks?.refund ?? null,
+        privacy: policyUrls.privacy ?? policyLinks?.privacy ?? null,
+        terms: policyUrls.terms ?? policyLinks?.terms ?? null,
+        shipping: policyUrls.shipping ?? policyLinks?.shipping ?? null,
+        cookie: policyUrls.cookie ?? policyLinks?.cookie ?? null,
+      };
+
+      // ── Data freshness ──
+      result.freshness = vd?.freshness ?? {
+        lastVerifiedAt: data.lastVerified,
+        dataAge: "STALE",
+        scanVersion: null,
+        signalSources: [],
+      };
+
+      // ── Verification evidence (per-dimension) ──
+      result.verificationEvidence = formatVerificationEvidence(vd?.tiers);
+
+      // ── Entity data (stock listing, headquarters, etc.) ──
       if (data.entityData && Object.keys(data.entityData).length > 0) {
         result.entityData = formatEntityData(data.entityData);
       }
 
-      // Include data sources for provenance
+      // ── Data sources for provenance ──
       if (data.dataSources && data.dataSources.length > 0) {
         result.dataSources = data.dataSources.map((s) => ({
           name: s.name,
@@ -184,6 +282,8 @@ server.tool(
         result.orbexaStoreUrl = data.orbexaStoreUrl;
       }
 
+      result.registryUrl = `${OTR_API_BASE}/api/otr/verify/${data.domain}`;
+
       return formatText(result);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Unknown error";
@@ -193,13 +293,13 @@ server.tool(
 );
 
 // ============================================================================
-// Tool 2: search_registry
+// Tool 2: search_registry — Discover merchants by criteria
 // ============================================================================
 
 // @ts-expect-error — MCP SDK Zod type inference recursion depth issue
 server.tool(
   "search_registry",
-  "Search the OTR merchant trust registry. Find merchants by name, category, or minimum trust score. Returns a paginated list of verified merchants matching the criteria.",
+  "Search the OTR merchant trust registry. Find merchants by name, category, or minimum trust score. Returns a paginated list of verified merchants with trust scores and recommendations.",
   {
     query: z
       .string()
@@ -282,91 +382,6 @@ server.tool(
 );
 
 // ============================================================================
-// Tool 3: get_refund_policy
-// ============================================================================
-
-server.tool(
-  "get_refund_policy",
-  "Get a merchant's refund and return policy information from the OTR registry. Returns detected policy pages, compliance evidence, and fulfillment data. Essential for AI agents handling purchase decisions.",
-  {
-    domain: z
-      .string()
-      .describe("The merchant's domain name (e.g., 'nike.com')"),
-  },
-  async ({ domain }) => {
-    try {
-      const cleanDomain = normalizeDomain(domain);
-      const response = await fetchWithTimeout(
-        `${OTR_API_BASE}/api/otr/verify/${encodeURIComponent(cleanDomain)}`,
-      );
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          return formatText({
-            domain: cleanDomain,
-            status: "NOT_FOUND",
-            message: `No refund policy data available for ${cleanDomain}. This merchant is not in the OTR registry.`,
-          });
-        }
-        throw new Error(
-          `OTR API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
-      const data = (await response.json()) as VerifyApiResponse;
-      const tiers = data.verificationData?.tiers;
-
-      const policyTier = tiers?.policyScore;
-      const fulfillmentTier = tiers?.fulfillment;
-      const complianceTier = tiers?.compliance;
-
-      // Parse policy evidence
-      const policyEvidence = policyTier?.evidence ?? "";
-      const detectedPolicies: string[] = [];
-      if (policyEvidence.includes("Privacy-policy"))
-        detectedPolicies.push("Privacy Policy");
-      if (policyEvidence.includes("Refund-policy"))
-        detectedPolicies.push("Refund Policy");
-      if (policyEvidence.includes("Terms-of-service"))
-        detectedPolicies.push("Terms of Service");
-
-      const result = {
-        domain: data.domain,
-        name: data.name,
-        status: policyTier?.status === "VERIFIED" ? "AVAILABLE" : "LIMITED",
-        policies: {
-          detected: detectedPolicies,
-          hasRefundPolicy: policyEvidence.includes("Refund"),
-          hasPrivacyPolicy: policyEvidence.includes("Privacy"),
-          hasTermsOfService: policyEvidence.includes("Terms"),
-          policyVerificationStatus: policyTier?.status ?? "PENDING",
-          policyEvidence: policyTier?.evidence ?? "No policy scan data",
-        },
-        compliance: {
-          status: complianceTier?.status ?? "PENDING",
-          evidence: complianceTier?.evidence ?? "No compliance data",
-        },
-        fulfillment: {
-          status: fulfillmentTier?.status ?? "PENDING",
-          evidence: fulfillmentTier?.evidence ?? "No fulfillment data",
-          isMerchantAuthorized: data.isMerchantAuthorized,
-        },
-        trustScore: data.trustScore,
-        badge: data.badge,
-        policyDimensionScore: data.trustDimensions?.policyScore ?? 0,
-      };
-
-      return formatText(result);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return formatError(
-        `Error getting refund policy for "${domain}": ${message}`,
-      );
-    }
-  },
-);
-
-// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -388,7 +403,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
     return await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "otr-mcp-server/3.0.0",
+        "User-Agent": "otr-mcp-server/3.1.0",
       },
       signal: controller.signal,
     });
@@ -400,7 +415,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
 /** Generate AI agent recommendation based on trust score and verification status */
 function getRecommendation(
   trustScore: number | null | undefined,
-  badge: string | null | undefined,
+  _badge: string | null | undefined,
   isMerchantAuthorized?: boolean,
 ): string {
   if (trustScore === null || trustScore === undefined) return "DO_NOT_RECOMMEND";
