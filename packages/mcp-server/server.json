@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.yb48666-ctrl/otr-protocol",
+  "description": "Merchant trust verification for AI agents. One call = trust score, badge, and purchase safety.",
+  "repository": {
+    "url": "https://github.com/yb48666-ctrl/OTR-Protocol-by-orbexa",
+    "source": "github"
+  },
+  "version": "3.1.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@otr-protocol/mcp-server",
+      "version": "3.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
