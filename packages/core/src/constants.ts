@@ -1,17 +1,18 @@
 /**
  * ============================================================================
- * OTR Protocol v3 — Scoring Constants
+ * OTR Protocol v4 — Scoring Constants
  * ============================================================================
  *
  * All weights, thresholds, and configuration for deterministic trust scoring.
  *
- * v3 Changes:
- * - Public Assessment: Identity weight increased to 0.55 (anti-gaming)
+ * v4 Changes:
+ * - Public Assessment: Identity weight reduced to 0.45, dataQuality added at 0.10
  * - Verified Merchant: Fulfillment weight increased to 0.35 (behavior-driven)
+ * - Compliance VERIFIED score raised to 90 (was 85)
+ * - Anti-gaming: identityGameableGap multiplier added
  * - No time-based scoring factors (fairness principle)
- * - Anti-gaming detection configuration added
  *
- * @version 3.0.0
+ * @version 4.0.0
  */
 
 import type { ScoringWeights } from "./types";
@@ -23,7 +24,7 @@ import type { ScoringWeights } from "./types";
 /**
  * Public Assessment weights (formerly "Cold Start")
  *
- * Identity dominates (0.55) because it contains unforgeable signals
+ * Identity dominates (0.45) because it contains unforgeable signals
  * (stock exchange listings, Wikidata, Tranco rank, domain age).
  * Technical/Policy/Web are easily gameable and weighted lower.
  *
@@ -31,12 +32,12 @@ import type { ScoringWeights } from "./types";
  *         scores 50.5 (UNRATED) instead of old 68.5 (BRONZE).
  */
 export const PUBLIC_ASSESSMENT_WEIGHTS: ScoringWeights = {
-  identity: 0.55,
+  identity: 0.45,
   technical: 0.15,
   compliance: 0.00,
   policyScore: 0.15,
   webPresence: 0.15,
-  dataQuality: 0.00,
+  dataQuality: 0.10,
   fulfillment: 0.00,
 };
 
@@ -161,6 +162,8 @@ export const ANTI_GAMING_CONFIG = {
     signalBrandMismatch: 0.5,
     /** Template policy detected */
     templatePolicy: 0.5,
+    /** Identity gameable gap detected */
+    identityGameableGap: 0.7,
   },
   /** Threshold for "perfect tech but no identity" detection */
   techScoreThreshold: 80,

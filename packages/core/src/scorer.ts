@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * OTR Protocol v3 — Deterministic Trust Scoring Engine
+ * OTR Protocol v4 — Deterministic Trust Scoring Engine
  * ============================================================================
  *
  * Pure, deterministic scoring: same inputs → identical outputs, always.
@@ -12,14 +12,14 @@
  * 3. Compliance   — Does the merchant meet regulatory standards?
  * 4. PolicyScore  — Are consumer policies complete and transparent?
  * 5. WebPresence  — Is the website professionally maintained?
- * 6. DataQuality  — How good is the product data? (requires API)
+ * 6. DataQuality  — How good is the product data? (public sampling + merchant API)
  * 7. Fulfillment  — Can they actually deliver? (requires API)
  *
  * Scoring Phases:
- * - Public Assessment: Identity(0.55) + Technical(0.15) + Policy(0.15) + Web(0.15)
+ * - Public Assessment: Identity(0.45) + Technical(0.15) + Policy(0.15) + Web(0.15) + DataQuality(0.10)
  * - Verified Merchant: All 7 dims with Fulfillment(0.35) + DataQuality(0.25)
  *
- * @version 3.0.0
+ * @version 4.0.0
  */
 
 import type {
@@ -147,7 +147,7 @@ export function scoreTechnical(evidence: ScoringEvidence): number {
  * Score Compliance dimension (0-100).
  *
  * Status-based model:
- * - VERIFIED (audit passed) → 85
+ * - VERIFIED (audit passed) → 90
  * - PARTIAL (some evidence) → 72
  * - High compliance industry (inferred) → 50 (restored baseline)
  * - PENDING → 0
@@ -159,7 +159,7 @@ export function scoreCompliance(evidence: ScoringEvidence): number {
   if (evidence.complianceScore > 0) return clamp(evidence.complianceScore, 0, 100);
 
   // Status-based fallback
-  if (evidence.complianceStatus === "VERIFIED") return 85;
+  if (evidence.complianceStatus === "VERIFIED") return 90;
   if (evidence.complianceStatus === "PARTIAL") return 72;
 
   // Industry inference — high-compliance industries get baseline
@@ -199,30 +199,28 @@ export function scorePolicyScore(evidence: ScoringEvidence): number {
 /**
  * Score WebPresence dimension (0-100).
  *
- * Measures website professionalism and discoverability:
- * - robots.txt (+10), allows crawlers (+5)
- * - sitemap.xml (+10)
- * - Schema.org JSON-LD (+15)
- * - Organization schema complete (+10)
+ * Measures website discoverability and AI-readiness:
+ * - robots.txt (+15), allows crawlers (+5)
+ * - sitemap.xml (+15)
+ * - Schema.org JSON-LD (+20)
+ * - Organization schema complete (+15)
  * - Multi-language (hreflang) (+5)
- * - Viewport meta (+5)
- * - Favicon (+5)
- * - Page has content (+20)
- *
- * Phase 2 (future): AI crawler friendliness (+10), llms.txt (+5)
+ * - AI crawler friendliness (+10)
+ * - llms.txt (+10)
+ * - Public API endpoints (+5)
  */
 export function scoreWebPresence(evidence: ScoringEvidence): number {
   let score = 0;
 
-  if (evidence.hasRobotsTxt) score += 10;
+  if (evidence.hasRobotsTxt) score += 15;
   if (evidence.robotsAllowsCrawlers) score += 5;
-  if (evidence.hasSitemap) score += 10;
-  if (evidence.hasSchemaOrg) score += 15;
-  if (evidence.hasOrgSchemaComplete) score += 10;
+  if (evidence.hasSitemap) score += 15;
+  if (evidence.hasSchemaOrg) score += 20;
+  if (evidence.hasOrgSchemaComplete) score += 15;
   if (evidence.hasMultiLang) score += 5;
-  if (evidence.hasViewport) score += 5;
-  if (evidence.hasFavicon) score += 5;
-  if (evidence.pageHasContent) score += 20;
+  if (evidence.aiCrawlerFriendly) score += 10;
+  if (evidence.hasLlmsTxt) score += 10;
+  if (evidence.hasPublicApi) score += 5;
 
   return clamp(score, 0, 100);
 }
@@ -230,21 +228,42 @@ export function scoreWebPresence(evidence: ScoringEvidence): number {
 /**
  * Score DataQuality dimension (0-100).
  *
- * Measures product data completeness (requires Verified Merchant API):
- * - Product catalog (+30)
- * - Pricing data (+25)
- * - Inventory sync (+20)
- * - Rich media (+15)
- * - Structured data (+10)
+ * Measures product data completeness via 3-page product sampling:
+ * - Sub-dim 1: Complete Product Catalog (max 25)
+ * - Sub-dim 2: Accurate Pricing (max 30)
+ * - Sub-dim 3: Inventory Freshness (max 15)
+ * - Sub-dim 4: Rich Media (max 10)
+ * - Sub-dim 5: Schema.org Product Completeness (max 20)
  */
 export function scoreDataQuality(evidence: ScoringEvidence): number {
   let score = 0;
 
-  if (evidence.hasProductCatalog) score += 30;
-  if (evidence.hasPricingData) score += 25;
-  if (evidence.hasInventorySync) score += 20;
-  if (evidence.hasRichMedia) score += 15;
-  if (evidence.hasStructuredData) score += 10;
+  // Sub-dim 1: Complete Product Catalog (max 25)
+  if (evidence.hasProductSchema) score += 8;
+  if (evidence.productHasBasicFields) score += 7;
+  if (evidence.hasProductSitemap) score += 5;
+  if (evidence.productUrlCount >= 10) score += 5;
+  if (evidence.isPlaceholder) score -= 10;
+
+  // Sub-dim 2: Accurate Pricing (max 30)
+  if (evidence.hasPriceData) score += 12;
+  if (evidence.priceHasCurrency) score += 8;
+  if (evidence.hasAvailability) score += 10;
+
+  // Sub-dim 3: Inventory Freshness (max 15)
+  if (evidence.sitemapLastmodRecent) score += 8;
+  if (evidence.hasVariedAvailability) score += 7;
+
+  // Sub-dim 4: Rich Media (max 10)
+  if (evidence.productImagesHaveAlt) score += 5;
+  if (evidence.productImageCount > 1) score += 5;
+
+  // Sub-dim 5: Schema.org Product Completeness (max 20)
+  if (evidence.hasProductSchema) score += 6;
+  if (evidence.structuredDataMethod === "json-ld") score += 2;
+  if (evidence.productHasBrand) score += 4;
+  if (evidence.productHasReview) score += 4;
+  if (evidence.productHasIdentifier) score += 4;
 
   return clamp(score, 0, 100);
 }
@@ -330,16 +349,12 @@ export function assignTier(badge: Badge): Tier {
 /**
  * Detect whether merchant has provided verified API data.
  *
- * If any DataQuality or Fulfillment evidence exists,
- * the merchant has integrated via API → use Verified Merchant weights.
+ * DataQuality is now scored via product page sampling (public),
+ * so it no longer indicates merchant API access.
+ * Only Fulfillment fields indicate merchant integration.
  */
 export function hasMerchantData(evidence: ScoringEvidence): boolean {
   return (
-    evidence.hasProductCatalog ||
-    evidence.hasPricingData ||
-    evidence.hasInventorySync ||
-    evidence.hasRichMedia ||
-    evidence.hasStructuredData ||
     evidence.hasShippingPolicy ||
     evidence.hasReturnPolicy ||
     evidence.hasOrderTracking ||
@@ -374,9 +389,9 @@ export function determineDataConfidence(dataAgeMonths: number | null): DataConfi
  * Calculate 7-dimension trust score.
  *
  * Public Assessment formula:
- *   composite = (identity × 0.55) + (technical × 0.15)
+ *   composite = (identity × 0.45) + (technical × 0.15)
  *             + (policyScore × 0.15) + (webPresence × 0.15)
- *             + Brand Fast-Track bonus
+ *             + (dataQuality × 0.10) + Brand Fast-Track bonus
  *
  * Verified Merchant formula:
  *   composite = (identity × 0.15) + (technical × 0.05) + (compliance × 0.10)
@@ -473,9 +488,11 @@ function buildVerificationData(
       source: evidence.complianceScore > 0 ? "compliance-audit" : "",
     },
     dataQuality: {
-      status: dimensions.dataQuality > 0 ? "PARTIAL" : "PENDING",
-      evidence: dimensions.dataQuality > 0 ? "Product data partially available" : "Requires merchant API integration",
-      source: dimensions.dataQuality > 0 ? "merchant-api" : "",
+      status: dimensions.dataQuality > 0 ? (dimensions.dataQuality >= 50 ? "VERIFIED" : "PARTIAL") : "PENDING",
+      evidence: dimensions.dataQuality > 0
+        ? "Score based on 3-page product structured data sampling"
+        : "Based on 3-page sample. Full-site scan available after merchant onboarding for higher accuracy",
+      source: dimensions.dataQuality > 0 ? "product-sample-scan" : "",
     },
     fulfillment: {
       status: dimensions.fulfillment > 0 ? "PARTIAL" : "PENDING",

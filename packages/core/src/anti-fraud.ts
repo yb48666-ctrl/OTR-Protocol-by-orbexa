@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * OTR Protocol v3 — Anti-Gaming Detection
+ * OTR Protocol v4 — Anti-Gaming Detection
  * ============================================================================
  *
  * Detects adversarial optimization of gameable scoring signals.
@@ -9,10 +9,12 @@
  *
  * Detection Patterns:
  * 1. Signal-Brand Mismatch: Perfect tech + no identity = suspicious
- * 2. Domain Age Gate: Young domains have capped gameable dimension scores
- * 3. Template Detection: Policy pages matching known template fingerprints
+ * 2. Identity-Gameable Gap: Low identity with high gameable = suspicious
+ * 3. Domain Age Gate: Young domains have capped gameable dimension scores
+ * 4. Template Detection: Policy pages matching known template fingerprints
+ * 5. Template Site Suspect: Young domain with no Tranco/Wikidata and moderate gameable scores
  *
- * @version 3.0.0
+ * @version 4.0.0
  */
 
 import type {
@@ -49,6 +51,9 @@ export function detectGaming(
   const patterns: string[] = [];
   let worstMultiplier = 1.0;
 
+  // Pre-compute gameable average for multiple patterns
+  const gameableAvg = (dimensions.technical + dimensions.policyScore + dimensions.webPresence) / 3;
+
   // Pattern 1: Signal-Brand Mismatch
   // High tech score + no Tranco/Wikidata/stock + young domain = LIKELY_GAMING
   const hasEstablishedIdentity =
@@ -62,6 +67,17 @@ export function detectGaming(
       patterns.push("SIGNAL_BRAND_MISMATCH: High technical score with no verifiable brand identity");
       worstMultiplier = Math.min(worstMultiplier, ANTI_GAMING_CONFIG.multipliers.signalBrandMismatch);
     }
+  }
+
+  // Pattern: Identity-Gameable Gap
+  // Low identity but high gameable dimensions + no established identity
+  if (
+    dimensions.identity < 20 &&
+    gameableAvg > 70 &&
+    !hasEstablishedIdentity
+  ) {
+    patterns.push("IDENTITY_GAMEABLE_GAP: Low identity score with high gameable dimensions");
+    worstMultiplier = Math.min(worstMultiplier, ANTI_GAMING_CONFIG.multipliers.identityGameableGap);
   }
 
   // Pattern 2: Domain Age Gate
@@ -88,6 +104,22 @@ export function detectGaming(
   if (gameablePerfect && dimensions.identity < 30) {
     patterns.push("PERFECT_GAMEABLE: Near-perfect tech/policy/web with minimal identity");
     worstMultiplier = Math.min(worstMultiplier, ANTI_GAMING_CONFIG.multipliers.timeClustering);
+  }
+
+  // Pattern: Template Site Suspect
+  // Young domain + no Tranco + no Wikidata + no SEC + gameable avg > 60
+  if (
+    (evidence.companyAge !== null && evidence.companyAge < 1) || evidence.companyAge === null
+  ) {
+    if (
+      !evidence.hasWikidataId &&
+      !evidence.hasStockSymbol &&
+      (evidence.trancoRank === null || evidence.trancoRank > ANTI_GAMING_CONFIG.trancoEstablishedThreshold) &&
+      gameableAvg > 60
+    ) {
+      patterns.push("TEMPLATE_SITE_SUSPECT: Young/unknown domain with no identity signals and high gameable scores");
+      worstMultiplier = Math.min(worstMultiplier, ANTI_GAMING_CONFIG.multipliers.templatePolicy);
+    }
   }
 
   // Determine severity

@@ -1,6 +1,6 @@
 {
   "name": "@otr-protocol/core",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "description": "OTR Protocol — Deterministic trust scoring engine for AI agent commerce",
   "type": "module",
   "main": "dist/index.js",

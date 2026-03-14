@@ -1,12 +1,12 @@
 /**
  * ============================================================================
- * OTR Protocol v3 — Core Type Definitions
+ * OTR Protocol v4 — Core Type Definitions
  * ============================================================================
  *
  * Deterministic trust scoring types for AI agent commerce.
  * All types are pure TypeScript — no runtime dependencies.
  *
- * @version 3.0.0
+ * @version 4.0.0
  */
 
 // ============================================================================
@@ -72,7 +72,7 @@ export type AntiGamingSeverity = (typeof ANTI_GAMING_SEVERITY)[number];
  * ScoringEvidence — Complete input data for 7-dimension trust scoring.
  *
  * Two scoring phases:
- * - Public Assessment: Identity(0.55) + Technical(0.15) + PolicyScore(0.15) + WebPresence(0.15)
+ * - Public Assessment: Identity(0.45) + DataQuality(0.10) + Technical(0.15) + PolicyScore(0.15) + WebPresence(0.15)
  * - Verified Merchant: All 7 dimensions with Fulfillment(0.35) + DataQuality(0.25) dominant
  */
 export interface ScoringEvidence {
@@ -157,24 +157,57 @@ export interface ScoringEvidence {
   hasOrgSchemaComplete: boolean;
   /** Multi-language support (hreflang) */
   hasMultiLang: boolean;
-  /** Mobile viewport meta tag */
-  hasViewport: boolean;
-  /** Favicon exists */
-  hasFavicon: boolean;
-  /** Page loads with real content (not empty shell) */
-  pageHasContent: boolean;
+  /** AI crawler friendly (allows GPTBot/ClaudeBot/PerplexityBot) */
+  aiCrawlerFriendly: boolean;
+  /** Has llms.txt file */
+  hasLlmsTxt: boolean;
+  /** Has public API endpoints declared in llms.txt */
+  hasPublicApi: boolean;
 
-  // ── DataQuality Dimension (requires Verified Merchant API) ──
-  /** Has product catalog */
-  hasProductCatalog: boolean;
-  /** Has pricing data */
-  hasPricingData: boolean;
-  /** Has inventory sync */
-  hasInventorySync: boolean;
-  /** Has rich media (images, videos) */
-  hasRichMedia: boolean;
-  /** Has structured product data */
-  hasStructuredData: boolean;
+  // ── DataQuality Dimension (Product Page Sampling) ──
+  // Sub-dim 1: Complete Product Catalog (max 25)
+  /** Has JSON-LD or Microdata Product schema (≥2/3 sampled pages) */
+  hasProductSchema: boolean;
+  /** Product has name+description+image (≥2/3 sampled pages) */
+  productHasBasicFields: boolean;
+  /** Sitemap contains product URLs */
+  hasProductSitemap: boolean;
+  /** Product URL count in sitemap */
+  productUrlCount: number;
+  /** Template/placeholder detection (price=0, identical descriptions) */
+  isPlaceholder: boolean;
+
+  // Sub-dim 2: Accurate Pricing (max 30)
+  /** Has Offer/AggregateOffer data */
+  hasPriceData: boolean;
+  /** priceCurrency field present */
+  priceHasCurrency: boolean;
+  /** availability field present */
+  hasAvailability: boolean;
+
+  // Sub-dim 3: Inventory Freshness (max 15)
+  /** Sitemap lastmod within 30 days */
+  sitemapLastmodRecent: boolean;
+  /** Multiple availability statuses (InStock + OutOfStock) */
+  hasVariedAvailability: boolean;
+
+  // Sub-dim 4: Rich Media (max 10)
+  /** Product images have alt text */
+  productImagesHaveAlt: boolean;
+  /** Product image count */
+  productImageCount: number;
+
+  // Sub-dim 5: Schema.org Product Completeness (max 20)
+  /** Has brand information */
+  productHasBrand: boolean;
+  /** Has ratings/reviews */
+  productHasReview: boolean;
+  /** Has SKU/GTIN/MPN identifiers */
+  productHasIdentifier: boolean;
+  /** Structured data detection method */
+  structuredDataMethod: "json-ld" | "microdata" | "none";
+  /** Number of sampled product pages */
+  productSampleCount: number;
 
   // ── Fulfillment Dimension (requires Verified Merchant API) ──
   /** Has shipping policy (via merchant API) */

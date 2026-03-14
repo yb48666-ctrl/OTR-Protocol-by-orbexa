@@ -62,7 +62,7 @@ Without OTR, AI agents operate blind -- unable to distinguish a legitimate retai
 
 - **Deterministic** -- Same inputs always produce identical outputs. Any validator can reproduce any score.
 - **Verifiable** -- All data sources are publicly accessible. No hidden factors or proprietary signals.
-- **Unforgeable** -- Identity dimension weighted at 55% in public assessment. SEC filings, Wikidata entries, and 10-year domain age cannot be faked.
+- **Unforgeable** -- Identity dimension weighted at 45% in public assessment. SEC filings, Wikidata entries, and 10-year domain age cannot be faked.
 - **Tamper-proof** -- SHA-256 hash chain + Base L2 blockchain anchoring + IPFS monthly snapshots.
 - **Fair** -- No pay-for-trust. Scores reflect behavior, not subscription level.
 
@@ -82,7 +82,7 @@ npx @otr-protocol/validator verify nike.com
 # │  Compliance:    72  ████████████░░░░    │
 # │  Policy:        75  ████████████░░░░    │
 # │  Web Presence:  82  █████████████░░░    │
-# │  Data Quality:  --  (requires merchant) │
+# │  Data Quality:  65  ██████████░░░░░░    │
 # │  Fulfillment:   --  (requires merchant) │
 # └─────────────────────────────────────────┘
 ```
@@ -205,7 +205,9 @@ console.log(result.tier);        // "TIER_4"
      │  Tranco List     │    │  Delivery Metrics    │    │  Base L2 Anchoring │
      │  DNS Records     │    │  Tracking Numbers    │    │  IPFS Snapshots    │
      │  SSL Certs       │    │  (desensitized)      │    │                    │
-     │  crt.sh          │    │                      │    │                    │
+     │  Finnhub.io      │    │                      │    │                    │
+     │  Google Web Risk │    │                      │    │                    │
+     │  Website Scan    │    │                      │    │                    │
      └─────────────────┘    └──────────────────────┘    └───────────────────┘
 ```
 
@@ -215,15 +217,17 @@ console.log(result.tier);        // "TIER_4"
 
 | # | Dimension | Weight (Public) | Weight (Verified) | What It Measures |
 |---|-----------|:-:|:-:|------------------|
-| 1 | **Identity** | **0.55** | 0.15 | SEC filings, stock exchange, Wikidata, domain age, Tranco rank |
-| 2 | **Technical** | 0.15 | 0.05 | SSL/TLS, DMARC, SPF, DKIM, HSTS, CAA, security.txt |
+| 1 | **Identity** | **0.45** | 0.15 | SEC filings, stock exchange, Wikidata, domain age, Tranco rank |
+| 2 | **Technical** | 0.15 | 0.05 | SSL/TLS, DMARC, SPF, DKIM, HSTS, CAA, security.txt, MTA-STS |
 | 3 | **Compliance** | -- | 0.10 | GDPR, CCPA, PCI-DSS, industry-specific compliance |
 | 4 | **Policy** | 0.15 | 0.05 | Privacy policy, refund policy, terms of service, cookies |
-| 5 | **Web Presence** | 0.15 | 0.05 | robots.txt, Schema.org, AI crawler support, llms.txt |
-| 6 | **Data Quality** | -- | **0.25** | Product catalog, pricing, inventory, structured data |
+| 5 | **Web Presence** | 0.15 | 0.05 | robots.txt, Schema.org, AI crawler friendliness, llms.txt, public API |
+| 6 | **Data Quality** | **0.10** | **0.25** | Product structured data (JSON-LD/Microdata), 3-page sampling, pricing, inventory freshness |
 | 7 | **Fulfillment** | -- | **0.35** | Delivery speed, return window, tracking, shipping policy |
 
-**Why Identity = 0.55 in Public Assessment?** Because it measures unforgeable signals. A scam site can deploy perfect SSL/DMARC/HSTS (technical), generate policy pages (policy), and build a professional-looking site (web presence) -- but it cannot fake a NYSE listing, a 15-year domain history, or a Wikidata entry with thousands of edits.
+**Why Identity = 0.45 in Public Assessment?** Because it measures unforgeable signals. A scam site can deploy perfect SSL/DMARC/HSTS (technical), generate policy pages (policy), and build a professional-looking site (web presence) -- but it cannot fake a NYSE listing, a 15-year domain history, or a Wikidata entry with thousands of edits. In v4, Identity was reduced from 0.55 to 0.45 to activate DataQuality (0.10) -- product structured data quality is now assessed via 3-page sampling without requiring merchant cooperation.
+
+**Why DataQuality = 0.10 in Public Assessment?** v4 introduced product page sampling: OTR fetches 3 product pages (stratified by sitemap lastmod date) and evaluates JSON-LD/Microdata structured data quality. This provides a real signal about product data completeness without requiring merchant API access. After merchant onboarding, weight increases to 0.25 with full-site scanning.
 
 **Why Fulfillment = 0.35 in Verified Assessment?** Because "will they actually deliver?" is the #1 concern for AI agents making purchases. When a merchant provides API access, real fulfillment data becomes available and dominates the score.
 
@@ -232,11 +236,11 @@ console.log(result.tier);        // "TIER_4"
 ```
 Phase 1: Public Assessment (no merchant cooperation needed)
 ═══════════════════════════════════════════════════════════
-  Identity (0.55) + Technical (0.15) + Policy (0.15) + Web (0.15) = Score
+  Identity (0.45) + Technical (0.15) + Policy (0.15) + Web (0.15) + DQ (0.10) = Score
 
-  Nike (public):   Identity=85 × 0.55 + Tech=80 × 0.15 + ...  = 83 GOLD
-  Scam site:       Identity=10 × 0.55 + Tech=100 × 0.15 + ... = 39 UNRATED
-                                                                   ↑ can't game Identity
+  Nike (public):   Identity=85 × 0.45 + Tech=80 × 0.15 + DQ=65 × 0.10 + ...  = 83 GOLD
+  Scam site:       Identity=10 × 0.45 + Tech=100 × 0.15 + DQ=0 × 0.10 + ...  = 39 UNRATED
+                                                                                  ↑ can't game Identity
 
 
 Phase 2: Verified Merchant (merchant provides API access)
@@ -262,11 +266,12 @@ Phase 2: Verified Merchant (merchant provides API access)
 
 > Scores are capped at **94**. The 95-100 range is reserved for future multi-validator consensus confirmation.
 
-## 9-Layer Anti-Fraud Engine
+## 10-Layer Anti-Fraud Engine
 
-OTR v3 prevents fraudulent sites from gaming the system through a 9-layer detection pipeline:
+OTR v4 prevents fraudulent sites from gaming the system through a 10-layer detection pipeline:
 
 ```
+Layer 0  Safety Check        Google Web Risk API — malware/phishing one-vote-veto (instant block)
 Layer 1  Domain Age          Certificate history analysis (crt.sh)
 Layer 2  SSL Security        HTTPS/HSTS verification, self-signed detection
 Layer 3  DNS Security        DMARC, SPF, DKIM policy completeness
@@ -275,20 +280,31 @@ Layer 5  Tranco Rank         Independent traffic ranking verification
 Layer 6  Content Analysis    Phishing keywords, parked domains, empty pages
 Layer 7  Redirect Chain      Cross-domain redirect detection
 Layer 8  Cross-Signal        Multi-signal correlation and accumulation rules
-Layer 9  Anti-Gaming         Signal-brand mismatch, time clustering, template detection
+Layer 9  Anti-Gaming         Signal-brand mismatch, identity-gameable gap, template suspect
          ▼
+         Layer 0 DANGEROUS = immediate rejection (one-vote-veto)
          Single CRITICAL signal = immediate rejection
          Fraud score > 30 = rejection
          Anti-gaming multiplier applied to gameable dimensions
 ```
 
+### Anti-Gaming Detection Patterns (Layer 9)
+
+| Pattern | Trigger | Multiplier |
+|---------|---------|:----------:|
+| Signal-Brand Mismatch | Gameable avg ≥ 80 + no Tranco/Wikidata/SEC + Identity < 30 | 0.5x |
+| Identity-Gameable Gap | Identity < 20 + gameable avg > 70 + no established identity | 0.7x |
+| Template Site Suspect | Domain < 1yr + no Tranco/Wikidata/SEC + gameable avg > 60 | 0.5x |
+| Domain Age Gate (<6mo) | Domain under 6 months | Cap at 50 |
+| Domain Age Gate (<1yr) | Domain under 1 year | Cap at 75 |
+
 ### Anti-Gaming in Practice
 
-| Scenario | Old v2 Score | New v3 Score | Change |
+| Scenario | Old v3 Score | New v4 Score | Change |
 |----------|:----:|:----:|:------:|
-| Nike (legitimate brand) | 79 SILVER | 88 GOLD | +9 |
-| Scam site (perfect tech) | 68 BRONZE | 39 UNRATED | -29 |
-| Scam site + anti-gaming | -- | 28 UNRATED | blocked |
+| Nike (legitimate brand) | 83 GOLD | 83 GOLD | -- |
+| Scam site (perfect tech) | 39 UNRATED | 35 UNRATED | -4 |
+| Scam site + anti-gaming | 28 UNRATED | 22 UNRATED | -6 |
 
 ## Data Integrity
 
@@ -328,12 +344,14 @@ OTR never blindly trusts any single data source. Every external data point must 
 
 ```
 Source Weights (not all sources are equally trustworthy):
+  google-web-risk   1.0   Google Safe Browsing → one-vote-veto on DANGEROUS
   sec.gov           1.0   Government source → highest trust
   dns-query         0.9   Infrastructure → high trust
   tranco-list.eu    0.9   Academic source → high trust
   wikidata.org      0.8   Community source → high but editable
   finnhub.io        0.7   Commercial API → moderate-high trust
   website-scan      0.6   Self-reported → moderate trust
+  product-sample    0.5   Product page sampling → public but limited scope
   merchant-api      0.4   Merchant-declared → low trust (can be faked)
 
 Consensus Rules:
@@ -363,7 +381,7 @@ When merchants provide fulfillment data, OTR applies 4 levels of privacy protect
 | Open-source algorithm (MIT) | **Yes** | No | No | No |
 | No pay-for-trust | **Yes** | No | No | Yes |
 | Multi-source verification | **7 dimensions** | 1 (stars) | 1 (grade) | Partial |
-| Anti-gaming detection | **9-layer** | No | No | No |
+| Anti-gaming detection | **10-layer** | No | No | No |
 | Machine-readable output | **Full JSON** | Partial | No | Partial |
 | Immutable audit trail | **3-layer** | No | No | No |
 | Federation-ready | **Yes** | No | No | No |
@@ -414,7 +432,7 @@ OTR Protocol maintains the integrity and independence of merchant trust scores t
 | Phase | Status | Description |
 |-------|:------:|-------------|
 | Phase 1 | **Complete** | Open-source scoring engine, MCP Server, CLI, SDK, conformance tests |
-| Phase 2 | **In Progress** | Hash chain integrity, L2 anchoring, IPFS snapshots, logistics audit, multi-source consensus, data desensitization, score decay |
+| Phase 2 | **Complete** | Hash chain integrity, L2 anchoring, IPFS snapshots, logistics audit, multi-source consensus, data desensitization, score decay, Google Web Risk safety check |
 | Phase 3 | Planned | Federated trust validation (Certificate Transparency model), multi-validator consensus, trust.json cryptographic signatures |
 | Phase 4 | Planned | IETF Internet-Draft standardization, Python/Go SDKs, academic paper |
 
