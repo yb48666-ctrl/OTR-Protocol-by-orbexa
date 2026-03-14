@@ -26,7 +26,7 @@
  *     }
  *   }
  *
- * @version 3.1.0
+ * @version 4.0.0
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -140,7 +140,7 @@ interface RegistryApiResponse {
 
 const server = new McpServer({
   name: "otr-protocol",
-  version: "3.1.0",
+  version: "4.0.0",
 });
 
 // ============================================================================
@@ -403,7 +403,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
     return await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "otr-mcp-server/3.1.0",
+        "User-Agent": "otr-mcp-server/4.0.0",
       },
       signal: controller.signal,
     });

@@ -1,6 +1,6 @@
 {
   "name": "@otr-protocol/mcp-server",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "mcpName": "io.github.yb48666-ctrl/otr-protocol",
   "description": "OTR Protocol MCP Server — 2 tools for complete merchant trust verification (verify + search). One call = full answer.",
   "type": "module",
