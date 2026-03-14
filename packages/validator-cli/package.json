@@ -1,6 +1,6 @@
 {
   "name": "@otr-protocol/validator",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "OTR Protocol CLI — Verify merchant trust scores from the command line",
   "type": "module",
   "main": "dist/index.js",
