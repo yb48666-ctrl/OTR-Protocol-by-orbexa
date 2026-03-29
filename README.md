@@ -486,35 +486,21 @@ Test vectors in [`conformance/test-vectors.json`](conformance/test-vectors.json)
 - Non-commerce exclusion
 - Edge cases (empty data, null fields, boundary values)
 
-## Scoring Fairness Statement
+## Scoring Integrity
 
 OTR Protocol maintains the integrity and independence of merchant trust scores through these commitments:
 
-1. **No Score Selling** -- Trust scores cannot be purchased, sponsored, or commercially influenced.
-2. **No Pay-for-Trust** -- Subscription status has zero impact on OTR scores. Free-tier merchants receive identical scoring treatment.
+1. **No Score Selling** -- Trust scores cannot be purchased, sponsored, or commercially influenced. No premium tiers, sponsorships, or partnerships affect scoring.
+2. **No Pay-for-Trust** -- Subscription status has zero impact on OTR scores. Free-tier merchants and enterprise customers are evaluated identically.
 3. **No Human Override** -- All scores are computed algorithmically. No individual can manually adjust any score.
-4. **Algorithmic Transparency** -- The entire algorithm is open-source (MIT). Anyone can audit, verify, and reproduce any score.
-5. **Data-Driven Only** -- Scores reflect independently verifiable signals. Integration time, partnership status, and non-behavioral factors have no influence.
+4. **Algorithmic Transparency** -- The entire algorithm is open-source (MIT). Anyone can audit, verify, and reproduce any score. Re-scanning the same domain produces the same score (deterministic pipeline).
+5. **Data-Driven Only** -- Scores reflect independently verifiable signals. Merchant-submitted data is marked `verified=false` with `scoringWeight=0` and requires corroboration from at least 2 independent authoritative sources.
 
-**Enforcement:** Open-source code + conformance tests + governance process.
-
-### Scoring Integrity
-
-OTR scores are computed algorithmically from public signals only:
-
-- **No payment influence**: No merchant can pay for a higher score. No premium tiers, sponsorships, or partnerships affect scoring.
-- **No manual adjustments**: Scores are fully automated. No human reviewer can override the algorithm.
-- **Self-reported data**: Merchant-submitted data is marked `verified=false` with `scoringWeight=0`. Acceptance requires corroboration from at least 2 independent authoritative sources.
-- **Reproducible**: Re-scanning the same domain produces the same score (deterministic pipeline).
-- **Anti-gaming**: 10-layer fraud detection with compounding multipliers. Gaming attempts result in score suspension.
-
-### Scoring Independence
-
-Scores are not influenced by subscription tier, payment amount, or company size. Free merchants and enterprise customers are evaluated identically. The only way to improve a score is to improve actual trust signals.
+**Enforcement:** Open-source code + conformance tests + governance process + 10-layer anti-gaming detection with compounding multipliers.
 
 ### Mission
 
-OTR exists to create a fair, transparent trust layer for the AI agent commerce era. As AI agents increasingly make purchasing decisions on behalf of consumers, merchants need an objective way to demonstrate trustworthiness. OTR ensures that any merchant — regardless of size or brand recognition — can earn trust through verifiable performance. A small independent store with excellent operations can achieve the same trust score as a Fortune 500 retailer.
+OTR exists to create a fair, transparent trust layer for the AI agent commerce era. Any merchant -- regardless of size or brand recognition -- can earn trust through verifiable performance. The only way to improve a score is to improve actual trust signals.
 
 ## Public Data Sources
 
