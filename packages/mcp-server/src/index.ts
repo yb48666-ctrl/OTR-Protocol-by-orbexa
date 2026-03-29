@@ -1,17 +1,14 @@
 #!/usr/bin/env node
 /**
  * ============================================================================
- * OTR Protocol MCP Server — Merchant Trust Verification for AI Agents
+ * OTR Protocol MCP Server v4.1.0 — Merchant Trust Verification for AI Agents
  * ============================================================================
  *
- * Provides 2 MCP tools for AI agents to verify merchant trustworthiness:
+ * Aligned with OTR API v3.3 (6-dimension scoring, siteCategory, safety status).
  *
- * 1. verify_merchant — Complete merchant profile: trust score, capabilities,
- *    links, policy URLs, freshness, entity data. One call = full answer.
- * 2. search_registry — Search the OTR merchant registry by name/category/score.
- *
- * Design philosophy: One tool call should give the AI agent everything it needs
- * to make a trust decision. No need to chain multiple calls.
+ * 2 tools:
+ * 1. verify_merchant — Complete merchant profile in ONE call
+ * 2. search_registry — Search the merchant registry
  *
  * Usage:
  *   npx @otr-protocol/mcp-server
@@ -26,7 +23,7 @@
  *     }
  *   }
  *
- * @version 4.0.0
+ * @version 4.1.0
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -45,89 +42,85 @@ const OTR_API_BASE = (process.env.OTR_API_URL || "https://orbexa.io").replace(
 const REQUEST_TIMEOUT_MS = 15_000;
 
 // ============================================================================
-// Types
+// Types — aligned with OTR API v3.3
 // ============================================================================
 
-interface TierDetail {
+interface DimensionDetail {
+  score: number;
+  weight: number;
+  signalsVerified: number;
+  status?: string;
+  signals?: Record<string, unknown>;
+}
+
+interface SafetyInfo {
   source: string;
-  status: string;
-  evidence: string;
-}
-
-interface MerchantCapabilities {
-  canPurchase: boolean;
-  ecommercePlatform: string | null;
-  ecommerceConfidence: number;
-  paymentMethods: string[];
-  hasLiveSupport: boolean;
-  supportChannels: string[];
-  socialPresence: string[];
-  hasPhysicalAddress: boolean;
-  hasBusinessEmail: boolean;
-}
-
-interface MerchantLinks {
-  policies: {
-    privacy: string | null;
-    refund: string | null;
-    terms: string | null;
-    cookie: string | null;
-    shipping: string | null;
-  };
-  commerce: {
-    cart: string | null;
-    checkout: string | null;
-    products: string | null;
-    search: string | null;
-  };
-  contact: {
-    email: string | null;
-    phone: string | null;
-    supportPage: string | null;
-  };
-  social: Record<string, string>;
-}
-
-interface FreshnessInfo {
-  lastVerifiedAt: string | null;
-  dataAge: "FRESH" | "AGING" | "STALE";
-  scanVersion: number | null;
-  signalSources: string[];
+  status: "SAFE" | "DANGEROUS" | "UNKNOWN" | "ERROR" | "UNAVAILABLE";
+  threats: string[];
+  checkedAt: string | null;
+  warning: string | null;
 }
 
 interface VerifyApiResponse {
+  scanStatus: "complete" | "partial" | "pending";
+  scanStatusMessage?: { en: string; zh: string };
+  otrApplicable: boolean;
+  reason?: string;
+  siteCategory: "ecommerce" | "saas" | "non_commerce" | null;
+  siteCategoryLabel?: { en: string; zh: string };
+  otrId: string | null;
+  otrIdStatus: string | null;
+  domain: string;
+  name: string;
+  trustScore: number | null;
+  badge: string | null;
+  mode: "COLD" | "AUTH";
+  dimensions?: Record<string, DimensionDetail | null>;
+  signals?: Record<string, unknown>;
+  risks?: {
+    flagged: boolean;
+    alerts: string[];
+    scoreTrend: string;
+    antiGamingTriggered?: boolean;
+  };
+  safety: SafetyInfo;
+  agentCommerce?: {
+    ucpSupported: boolean;
+    acpSupported: boolean;
+    mcpSupported: boolean;
+    readiness: string;
+  };
+  entityData?: Record<string, unknown>;
+  siteLinks?: Record<string, string | null>;
+  dataSources?: Array<{ name: string; url: string; lastChecked: string }>;
+  trancoRank?: number | null;
+  isMerchantAuthorized?: boolean;
+  metadata?: {
+    otrSpecVersion: string;
+    scoringVersion: string;
+    freshness?: string;
+    dataAgeDays?: number;
+  };
+  // non_commerce specific
+  identity?: {
+    verified: boolean;
+    confidence: string;
+    signals: Record<string, unknown>;
+    summary: string;
+  };
+}
+
+interface RegistryEntry {
+  id: number;
   domain: string;
   name: string;
   trustScore: number;
-  trustTier: string;
   badge: string;
   category: string | null;
-  verificationData: {
-    tiers: Record<string, TierDetail>;
-    capabilities?: MerchantCapabilities;
-    links?: MerchantLinks;
-    freshness?: FreshnessInfo;
-    policyUrls?: Record<string, string>;
-    businessSignals?: string;
-    scanMetadata?: {
-      scanner: string;
-      lastScanAt: string;
-      scanVersion: number;
-    };
-    schema_version: string;
-  };
-  trustDimensions: Record<string, number>;
-  entityData: Record<string, unknown> | null;
-  dataSources: Array<{ name: string; url: string; lastChecked: string }>;
-  trancoRank: number | null;
-  isMerchantAuthorized: boolean;
-  orbexaStoreUrl: string | null;
-  auditVersion: number;
-  lastVerified: string;
 }
 
 interface RegistryApiResponse {
-  entries: VerifyApiResponse[];
+  entries: RegistryEntry[];
   total: number;
   page: number;
   limit: number;
@@ -140,7 +133,7 @@ interface RegistryApiResponse {
 
 const server = new McpServer({
   name: "otr-protocol",
-  version: "4.0.0",
+  version: "4.1.0",
 });
 
 // ============================================================================
@@ -150,20 +143,20 @@ const server = new McpServer({
 // @ts-expect-error — MCP SDK Zod type inference recursion depth issue
 server.tool(
   "verify_merchant",
-  `Complete merchant trust verification. Returns everything an AI agent needs in ONE call:
-- Trust score (0-94) and badge (PLATINUM/GOLD/SILVER/BRONZE/UNRATED)
-- AI recommendation (SAFE_TO_RECOMMEND / RECOMMEND_WITH_NOTE / RECOMMEND_WITH_CAUTION / DO_NOT_RECOMMEND)
-- 7-dimension breakdown (identity, technical, compliance, policy, webPresence, dataQuality, fulfillment)
-- Capabilities: can purchase? payment methods, e-commerce platform, support channels
-- Links: policy pages (refund/privacy/terms URLs), commerce (cart/checkout), contact, social
-- Entity data: stock listing, headquarters, founding date, industry
-- Data freshness: when last verified, data age, signal sources
-Use this as the SINGLE tool for all merchant trust decisions. No need to chain multiple calls.`,
+  `Complete merchant trust verification (OTR v3.3). Returns everything an AI agent needs in ONE call:
+- Trust score (0-100) and badge (PLATINUM/GOLD/SILVER/BRONZE/UNRATED)
+- Site classification: ecommerce, saas, or non_commerce
+- 6-dimension breakdown: Verification, Security, Governance, Transparency, DataQuality, Fulfillment
+- Safety status: Google Web Risk malware/phishing check (DANGEROUS = do not recommend)
+- Entity data: stock listing, headquarters, founding date, industry (from Wikidata/GLEIF)
+- Policy URLs, data sources, agent commerce readiness
+- For non-commerce sites: identity verification signals instead of trust score
+Use this as the SINGLE tool for all merchant trust decisions.`,
   {
     domain: z
       .string()
       .describe(
-        "The merchant's domain name (e.g., 'nike.com', 'amazon.com')",
+        "The merchant's domain name (e.g., 'nike.com', 'amazon.com', 'stripe.com')",
       ),
   },
   async ({ domain }) => {
@@ -179,10 +172,9 @@ Use this as the SINGLE tool for all merchant trust decisions. No need to chain m
             domain: cleanDomain,
             status: "NOT_FOUND",
             trustScore: null,
-            badge: "UNRATED",
+            badge: null,
             recommendation: "DO_NOT_RECOMMEND",
-            canPurchase: false,
-            message: `${cleanDomain} is not in the OTR registry. This merchant has not been assessed. Exercise caution when recommending unverified merchants.`,
+            message: `${cleanDomain} is not in the OTR registry. This merchant has not been assessed. Exercise caution.`,
           });
         }
         if (response.status === 429) {
@@ -196,81 +188,117 @@ Use this as the SINGLE tool for all merchant trust decisions. No need to chain m
       }
 
       const data = (await response.json()) as VerifyApiResponse;
-      const vd = data.verificationData;
 
-      const recommendation = getRecommendation(
-        data.trustScore,
-        data.badge,
-        data.isMerchantAuthorized,
-      );
+      // ── Safety check first — DANGEROUS overrides everything ──
+      if (data.safety?.status === "DANGEROUS") {
+        return formatText({
+          domain: data.domain,
+          name: data.name,
+          status: "DANGEROUS",
+          trustScore: data.trustScore,
+          badge: data.badge,
+          recommendation: "DO_NOT_RECOMMEND",
+          warning: data.safety.warning,
+          threats: data.safety.threats,
+          message: `WARNING: ${data.domain} has been flagged as dangerous by Google Web Risk. DO NOT recommend this merchant.`,
+        });
+      }
 
-      // ── Core trust assessment ──
+      // ── Non-commerce site — identity only, no trust score ──
+      if (data.otrApplicable === false) {
+        return formatText({
+          domain: data.domain,
+          name: data.name,
+          status: "NON_COMMERCE",
+          otrApplicable: false,
+          siteCategory: data.siteCategory,
+          siteCategoryLabel: data.siteCategoryLabel?.en ?? "Non-Commerce",
+          otrId: data.otrId,
+          recommendation: "NOT_APPLICABLE",
+          identity: data.identity,
+          entityData: data.entityData ? formatEntityData(data.entityData) : undefined,
+          safety: { status: data.safety?.status, threats: data.safety?.threats ?? [] },
+          message: `${data.domain} is a non-commerce site (${data.siteCategoryLabel?.en ?? data.siteCategory}). No trust score — identity signals only.`,
+        });
+      }
+
+      // ── Commerce site (ecommerce or saas) ──
+      const recommendation = getRecommendation(data.trustScore, data.badge, data.safety?.status);
+
       const result: Record<string, unknown> = {
         domain: data.domain,
         name: data.name,
-        status: "VERIFIED",
+        status: data.scanStatus === "pending" ? "PENDING" : "VERIFIED",
+        scanStatus: data.scanStatus,
+        otrApplicable: true,
+        siteCategory: data.siteCategory,
+        siteCategoryLabel: data.siteCategoryLabel?.en,
+        otrId: data.otrId,
+        otrIdStatus: data.otrIdStatus,
         trustScore: data.trustScore,
         badge: data.badge,
-        trustTier: data.trustTier,
+        mode: data.mode,
         recommendation,
-        assessmentType: data.isMerchantAuthorized
-          ? "VERIFIED_MERCHANT"
-          : "PUBLIC_ASSESSMENT",
-        isMerchantAuthorized: data.isMerchantAuthorized,
-        category: data.category,
-        trancoRank: data.trancoRank,
-        lastVerified: data.lastVerified,
+        isMerchantAuthorized: data.isMerchantAuthorized ?? false,
       };
 
-      // ── 7-dimension scores ──
-      result.dimensions = data.trustDimensions;
-
-      // ── Capabilities: can purchase? payment, support, social ──
-      result.capabilities = vd?.capabilities ?? {
-        canPurchase: false,
-        ecommercePlatform: null,
-        ecommerceConfidence: 0,
-        paymentMethods: [],
-        hasLiveSupport: false,
-        supportChannels: [],
-        socialPresence: [],
-        hasPhysicalAddress: false,
-        hasBusinessEmail: false,
-      };
-
-      // ── Links: policy pages, commerce endpoints, contact, social ──
-      if (vd?.links) {
-        result.links = vd.links;
+      // Scan pending — tell agent to check back
+      if (data.scanStatus === "pending") {
+        result.message = `${data.domain} is queued for evaluation. Trust score not yet available. Check back shortly.`;
+        return formatText(result);
       }
 
-      // ── Policy URLs (direct access) ──
-      const policyUrls = vd?.policyUrls ?? {};
-      const policyLinks = vd?.links?.policies;
-      result.policyUrls = {
-        refund: policyUrls.refund ?? policyLinks?.refund ?? null,
-        privacy: policyUrls.privacy ?? policyLinks?.privacy ?? null,
-        terms: policyUrls.terms ?? policyLinks?.terms ?? null,
-        shipping: policyUrls.shipping ?? policyLinks?.shipping ?? null,
-        cookie: policyUrls.cookie ?? policyLinks?.cookie ?? null,
-      };
+      // 6-dimension scores
+      if (data.dimensions) {
+        const dims: Record<string, unknown> = {};
+        for (const [key, dim] of Object.entries(data.dimensions)) {
+          if (dim === null) {
+            dims[key] = null;
+          } else {
+            dims[key] = { score: dim.score, weight: dim.weight, signalsVerified: dim.signalsVerified };
+          }
+        }
+        result.dimensions = dims;
+      }
 
-      // ── Data freshness ──
-      result.freshness = vd?.freshness ?? {
-        lastVerifiedAt: data.lastVerified,
-        dataAge: "STALE",
-        scanVersion: null,
-        signalSources: [],
-      };
+      // Key signals for quick decisions
+      if (data.signals) {
+        result.signals = data.signals;
+      }
 
-      // ── Verification evidence (per-dimension) ──
-      result.verificationEvidence = formatVerificationEvidence(vd?.tiers);
+      // Risk assessment
+      if (data.risks) {
+        result.risks = {
+          flagged: data.risks.flagged,
+          alerts: data.risks.alerts,
+          scoreTrend: data.risks.scoreTrend,
+        };
+      }
 
-      // ── Entity data (stock listing, headquarters, etc.) ──
+      // Safety
+      result.safety = { status: data.safety?.status, threats: data.safety?.threats ?? [] };
+
+      // Agent commerce readiness
+      if (data.agentCommerce) {
+        result.agentCommerce = data.agentCommerce;
+      }
+
+      // Entity data
       if (data.entityData && Object.keys(data.entityData).length > 0) {
         result.entityData = formatEntityData(data.entityData);
       }
 
-      // ── Data sources for provenance ──
+      // Policy URLs
+      if (data.siteLinks) {
+        result.policyUrls = {
+          privacy: data.siteLinks.privacyPolicy ?? null,
+          terms: data.siteLinks.termsOfService ?? null,
+          refund: data.siteLinks.refundPolicy ?? null,
+          shipping: data.siteLinks.shippingPolicy ?? null,
+        };
+      }
+
+      // Data sources
       if (data.dataSources && data.dataSources.length > 0) {
         result.dataSources = data.dataSources.map((s) => ({
           name: s.name,
@@ -278,11 +306,14 @@ Use this as the SINGLE tool for all merchant trust decisions. No need to chain m
         }));
       }
 
-      if (data.orbexaStoreUrl) {
-        result.orbexaStoreUrl = data.orbexaStoreUrl;
+      // Metadata
+      if (data.metadata) {
+        result.otrSpecVersion = data.metadata.otrSpecVersion;
+        result.freshness = data.metadata.freshness;
       }
 
-      result.registryUrl = `${OTR_API_BASE}/api/otr/verify/${data.domain}`;
+      result.registryUrl = `${OTR_API_BASE}/en/verify/${data.domain}`;
+      result.apiUrl = `${OTR_API_BASE}/api/otr/verify/${data.domain}`;
 
       return formatText(result);
     } catch (error: unknown) {
@@ -299,7 +330,7 @@ Use this as the SINGLE tool for all merchant trust decisions. No need to chain m
 // @ts-expect-error — MCP SDK Zod type inference recursion depth issue
 server.tool(
   "search_registry",
-  "Search the OTR merchant trust registry. Find merchants by name, category, or minimum trust score. Returns a paginated list of verified merchants with trust scores and recommendations.",
+  "Search the OTR merchant trust registry (v3.3). Find merchants by name, category, badge, or minimum trust score. Returns a paginated list with trust scores (0-100) and badge levels.",
   {
     query: z
       .string()
@@ -308,33 +339,29 @@ server.tool(
     category: z
       .string()
       .optional()
-      .describe(
-        "Filter by business category (e.g., 'Electronics', 'Fashion & Apparel')",
-      ),
-    minScore: z.number().optional().describe("Minimum trust score (0-94)"),
+      .describe("Filter by business category (e.g., 'TECH', 'FASHION', 'FINANCE')"),
     badge: z
-      .enum(["PLATINUM", "GOLD", "SILVER", "BRONZE"])
+      .enum(["PLATINUM", "GOLD", "SILVER", "BRONZE", "UNRATED"])
       .optional()
       .describe("Filter by badge level"),
     limit: z
       .number()
       .optional()
       .default(10)
-      .describe("Maximum results to return (default: 10, max: 50)"),
+      .describe("Maximum results to return (default: 10, max: 100)"),
     page: z
       .number()
       .optional()
       .default(1)
       .describe("Page number for pagination (default: 1)"),
   },
-  async ({ query, category, badge, minScore, limit, page }) => {
+  async ({ query, category, badge, limit, page }) => {
     try {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
       if (category) params.set("category", category);
       if (badge) params.set("badge", badge);
-      if (minScore !== undefined) params.set("minScore", String(minScore));
-      params.set("limit", String(Math.min(limit ?? 10, 50)));
+      params.set("limit", String(Math.min(limit ?? 10, 100)));
       params.set("page", String(page ?? 1));
 
       const response = await fetchWithTimeout(
@@ -364,12 +391,8 @@ server.tool(
           trustScore: entry.trustScore,
           badge: entry.badge,
           category: entry.category,
-          isMerchantAuthorized: entry.isMerchantAuthorized,
-          recommendation: getRecommendation(
-            entry.trustScore,
-            entry.badge,
-            entry.isMerchantAuthorized,
-          ),
+          recommendation: getRecommendation(entry.trustScore, entry.badge, "SAFE"),
+          verifyUrl: `${OTR_API_BASE}/api/otr/verify/${entry.domain}`,
         })),
       };
 
@@ -403,7 +426,7 @@ async function fetchWithTimeout(url: string): Promise<Response> {
     return await fetch(url, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "otr-mcp-server/4.0.0",
+        "User-Agent": "otr-mcp-server/4.1.0",
       },
       signal: controller.signal,
     });
@@ -412,43 +435,27 @@ async function fetchWithTimeout(url: string): Promise<Response> {
   }
 }
 
-/** Generate AI agent recommendation based on trust score and verification status */
+/** Generate AI agent recommendation based on badge and safety */
 function getRecommendation(
   trustScore: number | null | undefined,
-  _badge: string | null | undefined,
-  isMerchantAuthorized?: boolean,
+  badge: string | null | undefined,
+  safetyStatus: string | null | undefined,
 ): string {
-  if (trustScore === null || trustScore === undefined) return "DO_NOT_RECOMMEND";
+  if (safetyStatus === "DANGEROUS") return "DO_NOT_RECOMMEND";
+  if (trustScore === null || trustScore === undefined) return "INSUFFICIENT_DATA";
 
-  // Verified merchants with fulfillment data get slightly higher confidence
-  if (isMerchantAuthorized) {
-    if (trustScore >= 75) return "SAFE_TO_RECOMMEND";
-    if (trustScore >= 65) return "RECOMMEND_WITH_NOTE";
-    if (trustScore >= 55) return "RECOMMEND_WITH_CAUTION";
-    return "DO_NOT_RECOMMEND";
+  // Align with OTR v3.3 badge-based recommendations
+  switch (badge) {
+    case "PLATINUM":
+    case "GOLD":
+      return "SAFE_TO_RECOMMEND";
+    case "SILVER":
+      return "RECOMMEND_WITH_CAUTION";
+    case "BRONZE":
+      return "DISPLAY_ONLY";
+    default:
+      return "DO_NOT_RECOMMEND";
   }
-
-  // Public assessment (no fulfillment/data quality data)
-  if (trustScore >= 80) return "SAFE_TO_RECOMMEND";
-  if (trustScore >= 70) return "RECOMMEND_WITH_NOTE";
-  if (trustScore >= 60) return "RECOMMEND_WITH_CAUTION";
-  return "DO_NOT_RECOMMEND";
-}
-
-/** Format verification evidence for AI agent consumption */
-function formatVerificationEvidence(
-  tiers: Record<string, TierDetail> | undefined,
-): Record<string, { status: string; evidence: string }> | undefined {
-  if (!tiers) return undefined;
-
-  const result: Record<string, { status: string; evidence: string }> = {};
-  for (const [key, detail] of Object.entries(tiers)) {
-    result[key] = {
-      status: detail.status,
-      evidence: detail.evidence,
-    };
-  }
-  return result;
 }
 
 /** Extract key entity data fields for AI agent context */
@@ -458,14 +465,11 @@ function formatEntityData(
   const result: Record<string, unknown> = {};
 
   const fields = [
-    "stockSymbol",
-    "stockExchange",
+    "companyName",
+    "industry",
     "headquarters",
     "jurisdiction",
-    "foundingDate",
-    "industry",
-    "parentCompany",
-    "wikidataId",
+    "entityDataSource",
   ];
 
   for (const field of fields) {
@@ -474,10 +478,33 @@ function formatEntityData(
     }
   }
 
-  // Include stock listings if available
-  const allListings = entityData.allListings;
-  if (Array.isArray(allListings) && allListings.length > 0) {
-    result.stockListings = allListings;
+  // GLEIF data
+  if (entityData.gleif && typeof entityData.gleif === "object") {
+    const gleif = entityData.gleif as Record<string, unknown>;
+    result.gleif = {
+      lei: gleif.lei,
+      legalName: gleif.legalName,
+      active: gleif.active,
+    };
+  }
+
+  // Wikidata
+  if (entityData.wikidata && typeof entityData.wikidata === "object") {
+    const wd = entityData.wikidata as Record<string, unknown>;
+    result.wikidata = {
+      qid: wd.qid,
+      description: wd.description,
+    };
+  }
+
+  // Stock data
+  if (entityData.stock && typeof entityData.stock === "object") {
+    const stock = entityData.stock as Record<string, unknown>;
+    result.stock = {
+      symbol: stock.symbol,
+      exchange: stock.exchange,
+      tier: stock.tier,
+    };
   }
 
   return result;

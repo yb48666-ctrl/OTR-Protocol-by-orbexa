@@ -108,14 +108,14 @@ The OTR MCP Server uses the standard [Model Context Protocol](https://modelconte
 
 Now any AI agent can verify merchants in natural language:
 
-> *"Is nike.com trustworthy?"* --> OTR returns trust score 88, badge GOLD, and a 7-dimension breakdown with evidence sources.
+> *"Is nike.com trustworthy?"* --> OTR returns trust score 88/100, badge GOLD, and a 6-dimension breakdown (Verification, Security, Governance, Transparency, DataQuality, Fulfillment) with evidence sources.
 
 ### Two MCP Tools — One Call = Complete Answer
 
 | Tool | Description | Returns |
 |------|-------------|---------|
-| `verify_merchant` | Complete merchant profile in one call | Trust score, badge, 7-dimension breakdown, capabilities (canPurchase, payment methods, support), links (policies, commerce, contact, social), freshness, entity data |
-| `search_registry` | Search the OTR merchant registry | Paginated merchant list with scores and recommendations |
+| `verify_merchant` | Complete merchant profile in one call | Trust score (0-100), badge, 6-dimension breakdown, safety status (Google Web Risk), site classification (ecommerce/saas/non_commerce), entity data, policy URLs, data sources |
+| `search_registry` | Search the OTR merchant registry | Paginated merchant list with scores, badges, and recommendations |
 
 **Design philosophy:** AI agents should get everything they need in a single tool call. `verify_merchant` returns trust assessment + purchase capabilities + links + policy URLs + data freshness — no need to chain multiple calls.
 
@@ -258,13 +258,13 @@ Phase 2: Verified Merchant (merchant provides API access)
 
 | Badge | Score | AI Agent Action |
 |-------|:-----:|-----------------|
-| **PLATINUM** | 90-94 | Auto-recommend + auto-purchase |
-| **GOLD** | 80-89 | Recommend with merchant info displayed |
-| **SILVER** | 70-79 | Show products, require user confirmation to buy |
-| **BRONZE** | 60-69 | Display only, warn against auto-purchase |
-| **UNRATED** | 0-59 | Warning: insufficient trust signals |
+| **PLATINUM** | 90-100 | Safe to recommend with high confidence |
+| **GOLD** | 80-89 | Strong trust, recommended for AI agents |
+| **SILVER** | 70-79 | Recommend with standard caution |
+| **BRONZE** | 60-69 | Display only, suggest user verify independently |
+| **UNRATED** | 0-59 | Warn user about insufficient trust data |
 
-> Scores are capped at **94**. The 95-100 range is reserved for future multi-validator consensus confirmation.
+> Scores 95+ trigger human review recommendation. No hard cap. If safety.status is "DANGEROUS" (Google Web Risk), DO NOT recommend regardless of score.
 
 ## 10-Layer Anti-Fraud Engine
 
@@ -380,7 +380,7 @@ When merchants provide fulfillment data, OTR applies 4 levels of privacy protect
 | Deterministic scoring | **Yes** | No | No | No |
 | Open-source algorithm (MIT) | **Yes** | No | No | No |
 | No pay-for-trust | **Yes** | No | No | Yes |
-| Multi-source verification | **7 dimensions** | 1 (stars) | 1 (grade) | Partial |
+| Multi-source verification | **6 dimensions** | 1 (stars) | 1 (grade) | Partial |
 | Anti-gaming detection | **10-layer** | No | No | No |
 | Machine-readable output | **Full JSON** | Partial | No | Partial |
 | Immutable audit trail | **3-layer** | No | No | No |
