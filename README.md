@@ -508,6 +508,14 @@ OTR scores are computed algorithmically from public signals only:
 - **Reproducible**: Re-scanning the same domain produces the same score (deterministic pipeline).
 - **Anti-gaming**: 10-layer fraud detection with compounding multipliers. Gaming attempts result in score suspension.
 
+### Scoring Independence
+
+Scores are not influenced by subscription tier, payment amount, or company size. Free merchants and enterprise customers are evaluated identically. The only way to improve a score is to improve actual trust signals.
+
+### Mission
+
+OTR exists to create a fair, transparent trust layer for the AI agent commerce era. As AI agents increasingly make purchasing decisions on behalf of consumers, merchants need an objective way to demonstrate trustworthiness. OTR ensures that any merchant — regardless of size or brand recognition — can earn trust through verifiable performance. A small independent store with excellent operations can achieve the same trust score as a Fortune 500 retailer.
+
 ## Public Data Sources
 
 OTR evaluates merchants using publicly accessible data only (COLD mode). No merchant cooperation required.
