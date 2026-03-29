@@ -56,7 +56,7 @@ Without OTR, AI agents operate blind -- unable to distinguish a legitimate retai
 
 ## The Solution
 
-**OTR (Open Trust Registry)** provides deterministic, verifiable merchant trust scores using **6 verification dimensions**, a **10-layer anti-fraud engine**, and **three-layer immutable audit trail**. It is fully open-source (MIT), machine-readable, and designed from the ground up for AI agent consumption.
+**OTR (Open Trust Registry)** provides deterministic, verifiable merchant trust scores using **6 verification dimensions**, a **10-layer anti-fraud pipeline (Layer 0: Google Web Risk one-vote veto + Layers 1-9: core detection engine)**, and **three-layer immutable audit trail**. It is fully open-source (MIT), machine-readable, and designed from the ground up for AI agent consumption.
 
 ### Key Properties
 
@@ -228,6 +228,23 @@ Weights vary by site category:
 | 5 | **Data Quality** | 0.15 | 0.05 | 0.25 | E-commerce: 22 product data signals. SaaS: 12 platform signals (API docs, SLA, pricing, security certs) |
 | 6 | **Fulfillment** | -- | -- | **0.40** | Delivery speed, return window, tracking, shipping policy (COLD mode: not scored) |
 
+### What Each Dimension Measures
+
+| Dimension | Evaluates |
+|-----------|-----------|
+| Verification (V) | Is this a real, registered business? SSL certificate type, GLEIF LEI, Wikidata entity, SEC filings, domain age, payment processor detection |
+| Security (S) | Is the site technically secure? DMARC, SPF, DKIM, HSTS, CSP, WAF, DNSSEC configuration |
+| Governance (G) | Does it follow business rules? Privacy policy, refund policy, shipping policy, cookie consent, regulatory compliance |
+| Transparency (T) | Is it machine-readable? robots.txt, Schema.org structured data, llms.txt, protocol endpoint availability |
+| Data Quality (D) | Is product/service data complete? Product count, image coverage, price format consistency, category taxonomy depth |
+| Fulfillment (F) | Does it deliver on promises? Order completion rate, delivery time, return rate, dispute rate (AUTH mode only — requires merchant data) |
+
+### Why Weights Differ by Category
+
+- **E-commerce**: Verification weighted highest (0.40) because buyers need to trust the store before purchasing. Identity signals (SEC filings, Wikidata, domain age) are the strongest defense against fraudulent shops.
+- **SaaS**: Security (0.20) and Governance (0.23) weighted higher because SaaS platforms handle user data and need clear policies. Users entrust ongoing access to their information.
+- **Non-commerce**: Not scored. Sites that do not sell products or services lack applicable commerce dimensions (product data, checkout, fulfillment).
+
 ### Three Site Categories
 
 | Category | Description | Scoring |
@@ -236,19 +253,46 @@ Weights vary by site category:
 | `saas` | Software-as-a-Service platforms | Tailored weights (V=37%, G=23%) with 12 SaaS D signals |
 | `non_commerce` | Non-commercial sites (Wikipedia, government, etc.) | Not scored -- returns identity signals only |
 
+### Non-Commerce Sites
+
+Sites classified as `non_commerce` (e.g., Wikipedia, government portals, news sites) are not scored:
+- `trustScore`: null
+- `badge`: null
+- `scanStatus`: "non_commerce"
+- Basic verification data (SSL, entity info) is still returned, but no numerical trust score is assigned.
+
+Reason: Non-commerce sites do not sell products or services, so trust scoring dimensions (product data, checkout, fulfillment) do not apply.
+
 ### OTR-ID
 
-Every evaluated domain receives a unique identifier:
+Unique identifier assigned to each evaluated domain.
+
+**Format**: `OTR-1{mode}-{fingerprint}-{checksum}`
+- `1` — Protocol version
+- `mode` — `C` (COLD: pre-authorization scan) or `A` (AUTH: merchant authorized)
+- `fingerprint` — 12 uppercase hex chars, derived from SHA-256 of the normalized domain (first 48 bits)
+- `checksum` — 2 Base36 chars (Luhn mod-36 validation + deterministic salt)
 
 ```
-Format: OTR-1{C|A}-{12hex}-{2check}
 Example: OTR-1C-7F3A2B9E4D1C-K4
-
-  OTR-1  = Protocol version 1
-  C|A    = C (COLD) or A (AUTH) mode
-  12hex  = SHA-256 first 48 bits of domain
-  2check = Luhn mod 36 checksum
 ```
+
+**Properties**:
+- **Deterministic**: Same domain always produces the same fingerprint
+- **Irreversible**: SHA-256 is cryptographically one-way; truncated to 48 bits, the original domain cannot be recovered
+- **Collision-resistant**: ~281 trillion possible fingerprints (2^48)
+
+**Lifecycle**:
+
+| Event | Result | Status |
+|-------|--------|--------|
+| First scan | OTR-1C generated | ACTIVE |
+| Merchant authorizes | Upgraded to OTR-1A (same fingerprint, recalculated checksum) | UPGRADED |
+| Domain identity change detected | OTR-ID revoked (set to NULL), domain re-enters cold-start | REVOKED |
+| Google Web Risk flags domain | Score forced to 0 | SUSPENDED |
+| Anti-gaming multiplier < 0.10 | Score forced to 0 | SUSPENDED |
+
+Identity change is detected when weighted signals exceed threshold 3: GLEIF entity mismatch (3), nameserver change (2), content similarity < 30% (2), Wikidata P856 mismatch (2), domain parking > 90 days (2), SSL organization change (1).
 
 ### Google Web Risk (Layer 0 Safety)
 
@@ -453,6 +497,33 @@ OTR Protocol maintains the integrity and independence of merchant trust scores t
 5. **Data-Driven Only** -- Scores reflect independently verifiable signals. Integration time, partnership status, and non-behavioral factors have no influence.
 
 **Enforcement:** Open-source code + conformance tests + governance process.
+
+### Scoring Integrity
+
+OTR scores are computed algorithmically from public signals only:
+
+- **No payment influence**: No merchant can pay for a higher score. No premium tiers, sponsorships, or partnerships affect scoring.
+- **No manual adjustments**: Scores are fully automated. No human reviewer can override the algorithm.
+- **Self-reported data**: Merchant-submitted data is marked `verified=false` with `scoringWeight=0`. Acceptance requires corroboration from at least 2 independent authoritative sources.
+- **Reproducible**: Re-scanning the same domain produces the same score (deterministic pipeline).
+- **Anti-gaming**: 10-layer fraud detection with compounding multipliers. Gaming attempts result in score suspension.
+
+## Public Data Sources
+
+OTR evaluates merchants using publicly accessible data only (COLD mode). No merchant cooperation required.
+
+| Source | Data | Verifiable |
+|--------|------|-----------|
+| DNS Records | SPF, DMARC, DKIM, DNSSEC, MTA-STS, CAA | Yes — standard DNS queries |
+| SSL/TLS Certificates | Type (DV/OV/EV), issuing CA, organization | Yes — certificate transparency logs |
+| HTTP Headers | HSTS, CSP, X-Frame-Options, Permissions-Policy | Yes — any HTTP client |
+| Website Content | Policy pages, product catalog, Schema.org markup | Yes — public web pages |
+| Tranco List | Domain popularity ranking (top 1M) | Yes — tranco-list.eu (academic) |
+| WHOIS / crt.sh | Domain age, certificate history | Yes — public registries |
+| Wikidata | Entity verification via P856 (official website) | Yes — wikidata.org (CC0) |
+| GLEIF | Legal Entity Identifier (LEI), ISO 17442 | Yes — gleif.org |
+| SEC EDGAR | US regulatory filings | Yes — sec.gov |
+| Google Web Risk | Malware, phishing, unwanted software detection | Yes — Google API |
 
 ## Roadmap
 
