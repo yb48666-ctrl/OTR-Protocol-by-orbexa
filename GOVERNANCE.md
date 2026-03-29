@@ -252,27 +252,15 @@ Breaking changes require:
 
 ---
 
-## Federation Model
+## Validator Model
 
-### Phase 1: Single Validator (Current)
+### Current: Single Validator
 
 - ORBEXA operates as the sole validator
 - Algorithm is fully open-source for independent verification
 - Community can run the scoring engine locally for auditing
-
-### Phase 2: Federated Validators
-
-- Accredited organizations can run independent validators
-- Validators must pass conformance tests
-- Multi-validator consensus required for "confirmed" trust status
-- Disagreements between validators are flagged for review
-
-### Phase 3: Open Federation
-
-- Any organization meeting accreditation criteria can join
-- Governance council with elected representatives from validators, merchants, and AI agent developers
-- Decentralized dispute resolution
-- Certificate Transparency-style public log of all scoring operations
+- Three site categories (ecommerce / saas / non_commerce) with tailored scoring
+- Google Web Risk Layer 0 safety integration
 
 ---
 

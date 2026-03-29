@@ -113,7 +113,7 @@ otr-protocol/
 │   │   └── src/
 │   │       ├── types.ts     # All TypeScript type definitions
 │   │       ├── constants.ts # Weights, thresholds, configuration
-│   │       ├── scorer.ts    # Scoring logic for all 7 dimensions
+│   │       ├── scorer.ts    # Scoring logic for all 6 dimensions
 │   │       ├── anti-fraud.ts# Anti-gaming detection
 │   │       ├── validator.ts # Trust manifest validation
 │   │       └── index.ts     # Public API exports

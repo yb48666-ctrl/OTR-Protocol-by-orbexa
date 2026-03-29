@@ -56,15 +56,17 @@ Without OTR, AI agents operate blind -- unable to distinguish a legitimate retai
 
 ## The Solution
 
-**OTR (Open Trust Registry)** provides deterministic, verifiable merchant trust scores using **7 verification dimensions**, a **9-layer anti-fraud engine**, and **three-layer immutable audit trail**. It is fully open-source (MIT), machine-readable, and designed from the ground up for AI agent consumption.
+**OTR (Open Trust Registry)** provides deterministic, verifiable merchant trust scores using **6 verification dimensions**, a **10-layer anti-fraud engine**, and **three-layer immutable audit trail**. It is fully open-source (MIT), machine-readable, and designed from the ground up for AI agent consumption.
 
 ### Key Properties
 
 - **Deterministic** -- Same inputs always produce identical outputs. Any validator can reproduce any score.
 - **Verifiable** -- All data sources are publicly accessible. No hidden factors or proprietary signals.
-- **Unforgeable** -- Identity dimension weighted at 45% in public assessment. SEC filings, Wikidata entries, and 10-year domain age cannot be faked.
+- **Unforgeable** -- Verification dimension weighted at 40% in public assessment. SEC filings, Wikidata entries, and 10-year domain age cannot be faked.
 - **Tamper-proof** -- SHA-256 hash chain + Base L2 blockchain anchoring + IPFS monthly snapshots.
 - **Fair** -- No pay-for-trust. Scores reflect behavior, not subscription level.
+- **Category-aware** -- Three site categories (ecommerce / saas / non_commerce) with tailored scoring weights.
+- **Safety-first** -- Google Web Risk Layer 0 one-vote veto: flagged domains get score=0, status SUSPENDED.
 
 ## Quick Start
 
@@ -73,18 +75,18 @@ Without OTR, AI agents operate blind -- unable to distinguish a legitimate retai
 npx @otr-protocol/validator verify nike.com
 
 # Output:
-# ┌─────────────────────────────────────────┐
-# │  nike.com                        GOLD   │
-# │  Trust Score: 88/94                     │
-# │                                         │
-# │  Identity:      85  ██████████████░░    │
-# │  Technical:     80  █████████████░░░    │
-# │  Compliance:    72  ████████████░░░░    │
-# │  Policy:        75  ████████████░░░░    │
-# │  Web Presence:  82  █████████████░░░    │
-# │  Data Quality:  65  ██████████░░░░░░    │
-# │  Fulfillment:   --  (requires merchant) │
-# └─────────────────────────────────────────┘
+# ┌──────────────────────────────────────────────┐
+# │  nike.com                             GOLD   │
+# │  Trust Score: 88/100   Category: ecommerce   │
+# │  OTR-ID: OTR-1C-7F3A2B9E4D1C-K4             │
+# │                                              │
+# │  Verification:   85  ██████████████░░        │
+# │  Security:       80  █████████████░░░        │
+# │  Governance:     72  ████████████░░░░        │
+# │  Transparency:   75  ████████████░░░░        │
+# │  Data Quality:   65  ██████████░░░░░░        │
+# │  Fulfillment:    --  (COLD mode)             │
+# └──────────────────────────────────────────────┘
 ```
 
 ### For AI Agents (MCP Server)
@@ -129,7 +131,7 @@ const result = await otr.verify("nike.com");
 
 console.log(result.trustScore);   // 88
 console.log(result.badge);        // "GOLD"
-console.log(result.dimensions);   // { identity: 85, technical: 80, ... }
+console.log(result.dimensions);   // { verification: 85, security: 80, ... }
 
 // Search the registry
 const results = await otr.search("electronics", { minScore: 70 });
@@ -178,13 +180,13 @@ console.log(result.tier);        // "TIER_4"
                          │   @otr-protocol/core          │
                          │                               │
                          │  ┌─────────────────────────┐  │
-                         │  │ 7 Dimension Evaluators   │  │
-                         │  │ Identity | Technical     │  │
-                         │  │ Compliance | Policy      │  │
-                         │  │ Web | DataQuality | Ship │  │
+                         │  │ 6 Dimension Evaluators   │  │
+                         │  │ Verification | Security  │  │
+                         │  │ Governance | Transparency│  │
+                         │  │ DataQuality | Fulfillment│  │
                          │  └─────────────────────────┘  │
                          │  ┌─────────────────────────┐  │
-                         │  │ 9-Layer Anti-Fraud       │  │
+                         │  │ 10-Layer Anti-Fraud      │  │
                          │  │ Domain Age | SSL | DNS   │  │
                          │  │ Pattern | Tranco | ...   │  │
                          │  └─────────────────────────┘  │
@@ -213,45 +215,68 @@ console.log(result.tier);        // "TIER_4"
 
 ## How Scoring Works
 
-### 7 Trust Dimensions
+### 6 Trust Dimensions
 
-| # | Dimension | Weight (Public) | Weight (Verified) | What It Measures |
-|---|-----------|:-:|:-:|------------------|
-| 1 | **Identity** | **0.45** | 0.15 | SEC filings, stock exchange, Wikidata, domain age, Tranco rank |
-| 2 | **Technical** | 0.15 | 0.05 | SSL/TLS, DMARC, SPF, DKIM, HSTS, CAA, security.txt, MTA-STS |
-| 3 | **Compliance** | -- | 0.10 | GDPR, CCPA, PCI-DSS, industry-specific compliance |
-| 4 | **Policy** | 0.15 | 0.05 | Privacy policy, refund policy, terms of service, cookies |
-| 5 | **Web Presence** | 0.15 | 0.05 | robots.txt, Schema.org, AI crawler friendliness, llms.txt, public API |
-| 6 | **Data Quality** | **0.10** | **0.25** | Product structured data (JSON-LD/Microdata), 3-page sampling, pricing, inventory freshness |
-| 7 | **Fulfillment** | -- | **0.35** | Delivery speed, return window, tracking, shipping policy |
+Weights vary by site category:
 
-**Why Identity = 0.45 in Public Assessment?** Because it measures unforgeable signals. A scam site can deploy perfect SSL/DMARC/HSTS (technical), generate policy pages (policy), and build a professional-looking site (web presence) -- but it cannot fake a NYSE listing, a 15-year domain history, or a Wikidata entry with thousands of edits. In v4, Identity was reduced from 0.55 to 0.45 to activate DataQuality (0.10) -- product structured data quality is now assessed via 3-page sampling without requiring merchant cooperation.
+| # | Dimension | E-Commerce COLD | SaaS COLD | AUTH Mode | What It Measures |
+|---|-----------|:-:|:-:|:-:|------------------|
+| 1 | **Verification** | **0.40** | 0.37 | 0.10 | Stock exchange, Wikidata, GLEIF LEI, domain age, Tranco rank, payment processors |
+| 2 | **Security** | 0.15 | 0.20 | 0.10 | SSL/TLS, DMARC, SPF, DKIM, HSTS, DNSSEC, CSP, CAA, WAF, security.txt (15 signals) |
+| 3 | **Governance** | 0.20 | 0.23 | 0.10 | Privacy policy, GDPR/CCPA, terms, refund/return, shipping, cookie consent (10 signals) |
+| 4 | **Transparency** | 0.10 | 0.15 | 0.05 | robots.txt, sitemap, Schema.org, hreflang, AI crawler policy, llms.txt, about page |
+| 5 | **Data Quality** | 0.15 | 0.05 | 0.25 | E-commerce: 22 product data signals. SaaS: 12 platform signals (API docs, SLA, pricing, security certs) |
+| 6 | **Fulfillment** | -- | -- | **0.40** | Delivery speed, return window, tracking, shipping policy (COLD mode: not scored) |
 
-**Why DataQuality = 0.10 in Public Assessment?** v4 introduced product page sampling: OTR fetches 3 product pages (stratified by sitemap lastmod date) and evaluates JSON-LD/Microdata structured data quality. This provides a real signal about product data completeness without requiring merchant API access. After merchant onboarding, weight increases to 0.25 with full-site scanning.
+### Three Site Categories
 
-**Why Fulfillment = 0.35 in Verified Assessment?** Because "will they actually deliver?" is the #1 concern for AI agents making purchases. When a merchant provides API access, real fulfillment data becomes available and dominates the score.
+| Category | Description | Scoring |
+|----------|-------------|---------|
+| `ecommerce` | Online stores selling physical/digital products | Full 6-dimension scoring with product D signals |
+| `saas` | Software-as-a-Service platforms | Tailored weights (V=37%, G=23%) with 12 SaaS D signals |
+| `non_commerce` | Non-commercial sites (Wikipedia, government, etc.) | Not scored -- returns identity signals only |
 
-### Two Scoring Phases
+### OTR-ID
+
+Every evaluated domain receives a unique identifier:
 
 ```
-Phase 1: Public Assessment (no merchant cooperation needed)
-═══════════════════════════════════════════════════════════
-  Identity (0.45) + Technical (0.15) + Policy (0.15) + Web (0.15) + DQ (0.10) = Score
+Format: OTR-1{C|A}-{12hex}-{2check}
+Example: OTR-1C-7F3A2B9E4D1C-K4
 
-  Nike (public):   Identity=85 × 0.45 + Tech=80 × 0.15 + DQ=65 × 0.10 + ...  = 83 GOLD
-  Scam site:       Identity=10 × 0.45 + Tech=100 × 0.15 + DQ=0 × 0.10 + ...  = 39 UNRATED
-                                                                                  ↑ can't game Identity
+  OTR-1  = Protocol version 1
+  C|A    = C (COLD) or A (AUTH) mode
+  12hex  = SHA-256 first 48 bits of domain
+  2check = Luhn mod 36 checksum
+```
+
+### Google Web Risk (Layer 0 Safety)
+
+Google Web Risk operates as a Layer 0 one-vote veto, separate from dimension scoring:
+- Flagged domain → `trustScore = 0`, `otrIdStatus = SUSPENDED`, `safety.googleWebRisk = true`
+- Does not participate in dimension weight calculation
+- Overrides all other signals regardless of their values
+
+### Two Scoring Modes
+
+```
+COLD Mode: Public Assessment (no merchant cooperation needed)
+═══════════════════════════════════════════════════════════════
+  E-Commerce: V (0.40) + S (0.15) + G (0.20) + T (0.10) + D (0.15) = Score
+  SaaS:       V (0.37) + S (0.20) + G (0.23) + T (0.15) + D (0.05) = Score
+
+  Nike (ecommerce):   V=85×0.40 + S=80×0.15 + G=72×0.20 + ...  = 83 GOLD
+  Scam site:          V=10×0.40 + S=100×0.15 + G=90×0.20 + ...  = 39 UNRATED
+                                                                    ↑ can't game Verification
 
 
-Phase 2: Verified Merchant (merchant provides API access)
-═══════════════════════════════════════════════════════════
-  Fulfillment (0.35) + DataQuality (0.25) + Identity (0.15) + Compliance (0.10)
-  + Technical (0.05) + Policy (0.05) + Web (0.05) = Score
+AUTH Mode: Verified Merchant (merchant provides API access)
+═══════════════════════════════════════════════════════════════
+  F (0.40) + D (0.25) + V (0.10) + S (0.10) + G (0.10) + T (0.05) = Score
 
-  Good merchant:   Fulfill=90 × 0.35 + DQ=85 × 0.25 + ...  = 78 SILVER
-  Bad merchant:    Fulfill=30 × 0.35 + DQ=40 × 0.25 + ...  = 38 UNRATED
-                                                                  ↑ bad fulfillment = low score
-                                                                    regardless of subscription
+  Good merchant:   F=90×0.40 + D=85×0.25 + ...  = 78 SILVER
+  Bad merchant:    F=30×0.40 + D=40×0.25 + ...  = 38 UNRATED
+                                                    ↑ bad fulfillment = low score
 ```
 
 ### Trust Badges
@@ -268,7 +293,7 @@ Phase 2: Verified Merchant (merchant provides API access)
 
 ## 10-Layer Anti-Fraud Engine
 
-OTR v4 prevents fraudulent sites from gaming the system through a 10-layer detection pipeline:
+OTR prevents fraudulent sites from gaming the system through a 10-layer detection pipeline:
 
 ```
 Layer 0  Safety Check        Google Web Risk API — malware/phishing one-vote-veto (instant block)
@@ -384,7 +409,7 @@ When merchants provide fulfillment data, OTR applies 4 levels of privacy protect
 | Anti-gaming detection | **10-layer** | No | No | No |
 | Machine-readable output | **Full JSON** | Partial | No | Partial |
 | Immutable audit trail | **3-layer** | No | No | No |
-| Federation-ready | **Yes** | No | No | No |
+| Category-aware scoring | **3 types** | No | No | No |
 | Conformance test suite | **Yes** | N/A | N/A | N/A |
 | Data desensitization | **4-level** | N/A | N/A | Partial |
 
@@ -408,11 +433,13 @@ npm run conformance
 The test suite validates **determinism**: identical inputs produce identical outputs across all implementations (TypeScript, Python, Go, Rust). This ensures a merchant's trust score is the same regardless of which validator computed it.
 
 Test vectors in [`conformance/test-vectors.json`](conformance/test-vectors.json) cover:
-- Phase detection (Public Assessment vs. Verified Merchant)
-- Individual dimension scoring
-- Fast-track bonus calculation
-- Badge and tier assignment
+- Site category detection (ecommerce / saas / non_commerce)
+- Scoring mode detection (COLD vs AUTH)
+- Individual dimension scoring with category-specific weights
+- Badge and tier assignment (PLATINUM/GOLD/SILVER/BRONZE/UNRATED)
 - Anti-gaming detection and penalty application
+- Google Web Risk safety override
+- Non-commerce exclusion
 - Edge cases (empty data, null fields, boundary values)
 
 ## Scoring Fairness Statement
@@ -425,45 +452,15 @@ OTR Protocol maintains the integrity and independence of merchant trust scores t
 4. **Algorithmic Transparency** -- The entire algorithm is open-source (MIT). Anyone can audit, verify, and reproduce any score.
 5. **Data-Driven Only** -- Scores reflect independently verifiable signals. Integration time, partnership status, and non-behavioral factors have no influence.
 
-**Enforcement:** Open-source code + conformance tests + governance process + federation model (roadmap).
+**Enforcement:** Open-source code + conformance tests + governance process.
 
 ## Roadmap
 
 | Phase | Status | Description |
 |-------|:------:|-------------|
 | Phase 1 | **Complete** | Open-source scoring engine, MCP Server, CLI, SDK, conformance tests |
-| Phase 2 | **Complete** | Hash chain integrity, L2 anchoring, IPFS snapshots, logistics audit, multi-source consensus, data desensitization, score decay, Google Web Risk safety check |
-| Phase 3 | Planned | Federated trust validation (Certificate Transparency model), multi-validator consensus, trust.json cryptographic signatures |
-| Phase 4 | Planned | IETF Internet-Draft standardization, Python/Go SDKs, academic paper |
-
-## Federation Vision
-
-OTR is designed to evolve from a single-validator system to a federated trust network:
-
-```
-Phase 1-2 (Current):  Single validator (ORBEXA)
-Phase 3:              Multiple independent validators
-                      ┌─────────────────────┐
-                      │  OTR Governance      │
-                      │  Council             │
-                      └─────┬───────────┬────┘
-                            │           │
-                    ┌───────▼──┐  ┌─────▼──────┐
-                    │ Validator │  │ Validator   │  ...
-                    │ A (ORBEXA)│  │ B (Academic)│
-                    └───────┬──┘  └─────┬──────┘
-                            │           │
-                    Same open-source algorithm
-                    Same inputs → Same outputs
-                    Signed assessments → Append-only log
-                    3+ validators agree → "confirmed" status
-Phase 4:              IETF standardization
-```
-
-Key design decisions inspired by:
-- **Certificate Transparency** -- Multiple independent logs prevent any single point of trust
-- **Tranco** -- 5 independent data sources with Dowdall aggregation for manipulation resistance
-- **DMARC/SPF/DKIM** -- DNS-based self-publishing enables independent verification
+| Phase 2 | **Complete** | Hash chain integrity, L2 anchoring, IPFS snapshots, multi-source consensus, data desensitization, score decay, Google Web Risk Layer 0 safety, 3 site categories (ecommerce/saas/non_commerce), SaaS D-dimension 12 signals, COLD/AUTH scoring modes |
+| Phase 3 | Planned | IETF Internet-Draft standardization, Python/Go SDKs, academic paper |
 
 ## Contributing
 

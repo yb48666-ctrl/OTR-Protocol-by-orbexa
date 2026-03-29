@@ -4,7 +4,7 @@
  * OTR Protocol MCP Server v4.1.0 — Merchant Trust Verification for AI Agents
  * ============================================================================
  *
- * Aligned with OTR API v3.3 (6-dimension scoring, siteCategory, safety status).
+ * Aligned with OTR API v4.1 (6-dimension scoring, siteCategory, safety status).
  *
  * 2 tools:
  * 1. verify_merchant — Complete merchant profile in ONE call
@@ -42,7 +42,7 @@ const OTR_API_BASE = (process.env.OTR_API_URL || "https://orbexa.io").replace(
 const REQUEST_TIMEOUT_MS = 15_000;
 
 // ============================================================================
-// Types — aligned with OTR API v3.3
+// Types — aligned with OTR API v4.1
 // ============================================================================
 
 interface DimensionDetail {
@@ -143,7 +143,7 @@ const server = new McpServer({
 // @ts-expect-error — MCP SDK Zod type inference recursion depth issue
 server.tool(
   "verify_merchant",
-  `Complete merchant trust verification (OTR v3.3). Returns everything an AI agent needs in ONE call:
+  `Complete merchant trust verification (OTR v4.1). Returns everything an AI agent needs in ONE call:
 - Trust score (0-100) and badge (PLATINUM/GOLD/SILVER/BRONZE/UNRATED)
 - Site classification: ecommerce, saas, or non_commerce
 - 6-dimension breakdown: Verification, Security, Governance, Transparency, DataQuality, Fulfillment
@@ -330,7 +330,7 @@ Use this as the SINGLE tool for all merchant trust decisions.`,
 // @ts-expect-error — MCP SDK Zod type inference recursion depth issue
 server.tool(
   "search_registry",
-  "Search the OTR merchant trust registry (v3.3). Find merchants by name, category, badge, or minimum trust score. Returns a paginated list with trust scores (0-100) and badge levels.",
+  "Search the OTR merchant trust registry (v4.1). Find merchants by name, category, badge, or minimum trust score. Returns a paginated list with trust scores (0-100) and badge levels.",
   {
     query: z
       .string()
@@ -444,7 +444,7 @@ function getRecommendation(
   if (safetyStatus === "DANGEROUS") return "DO_NOT_RECOMMEND";
   if (trustScore === null || trustScore === undefined) return "INSUFFICIENT_DATA";
 
-  // Align with OTR v3.3 badge-based recommendations
+  // Align with OTR v4.1 badge-based recommendations
   switch (badge) {
     case "PLATINUM":
     case "GOLD":
