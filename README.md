@@ -6,7 +6,8 @@
 
 <p align="center">
   <strong>The merchant trust layer for AI agent commerce</strong><br>
-  <em>Deterministic, verifiable, open-source merchant trust scoring for the agentic economy</em>
+  <em>Deterministic, verifiable, open-source merchant trust scoring for the agentic economy</em><br>
+  <strong>Protocol v4.1</strong>
 </p>
 
 <p align="center">
@@ -517,6 +518,7 @@ OTR evaluates merchants using publicly accessible data only (COLD mode). No merc
 | Wikidata | Entity verification via P856 (official website) | Yes — wikidata.org (CC0) |
 | GLEIF | Legal Entity Identifier (LEI), ISO 17442 | Yes — gleif.org |
 | SEC EDGAR | US regulatory filings | Yes — sec.gov |
+| Finnhub / OpenFIGI | Stock exchange listings, ticker resolution | Yes — finnhub.io / openfigi.com |
 | Google Web Risk | Malware, phishing, unwanted software detection | Yes — Google API |
 
 ## Roadmap
